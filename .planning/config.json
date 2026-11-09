@@ -1,0 +1,17 @@
+{
+  "mode": "yolo",
+  "granularity": "Standard",
+  "parallelization": true,
+  "commit_docs": true,
+  "model_profile": "balanced",
+  "workflow": {
+    "research": true,
+    "plan_check": true,
+    "verifier": true,
+    "nyquist_validation": true,
+    "auto_advance": true
+  },
+  "ship": {
+    "pr_body_sections": []
+  }
+}
