@@ -19,7 +19,7 @@ Accurate, real-time automated trading decision support and risk-managed executio
 - [ ] **DATA-01**: Real-time and historical market data ingestion (OHLCV, order book) for stocks/crypto
 - [ ] **IND-01**: Technical indicator calculation engine (SMA, EMA, RSI, MACD, Bollinger Bands, ATR)
 - [ ] **AI-01**: AI-powered market sentiment and news analysis using Claude API
-- [ ] **RISK-01**: Automated risk management (stop-loss, take-profit, position sizing, daily drawdown limits)
+- [ ] **RISK-01**: Automated risk management (stop-loss, take-profit, position sizing, daily drawdown limits, and 3-consecutive-loss 4-hour trading pause circuit breaker unless overridden by user)
 - [ ] **EXEC-01**: Brokerage execution adapter (Alpaca / paper trading support)
 - [ ] **LEARN-01**: Automated trade loss post-mortem generator (crisp root-cause analysis stored in dedicated memory files) and pre-trade memory check loop to continuously improve setups
 - [ ] **UI-01**: Real-time dashboard for portfolio monitoring, performance tracking, and manual override

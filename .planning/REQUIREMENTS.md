@@ -16,6 +16,7 @@
 
 ### Risk Management & Execution
 - [ ] **RISK-01**: Enforce strict risk limits (maximum daily drawdown, position size caps, automated stop-loss and take-profit orders).
+- [ ] **RISK-02**: 3-consecutive-loss circuit breaker: If 3 consecutive trades are lost, immediately lock all automated trade entries for 4 hours, requiring explicit user manual intervention/override to resume.
 - [ ] **EXEC-01**: Connect to paper trading and live brokerage APIs (Alpaca API) for order submission and portfolio sync.
 
 ### Continuous Learning & Post-Mortem Memory

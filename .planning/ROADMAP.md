@@ -31,12 +31,13 @@ Claude Trading is structured into 5 vertical MVP phases, taking the platform fro
 
 ### Phase 4: Risk Management, Dual Execution & Post-Mortem Learning Loop
 **Goal:** Build risk controls, dual-mode execution (Virtual & Live), and automated trade loss post-mortem continuous learning memory.
-**Requirements:** RISK-01, EXEC-01, LEARN-01, LEARN-02
+**Requirements:** RISK-01, RISK-02, EXEC-01, LEARN-01, LEARN-02
 **Success Criteria:**
 1. Automated stop-loss, take-profit, and max daily drawdown circuit breaker.
-2. Secure API connection and order placement for both Virtual simulation and Live brokerage (Alpaca).
-3. Automatic post-mortem generation for every losing trade with root-cause analysis stored in dedicated memory files.
-4. Pre-trade memory filter that queries past loss post-mortems and prevents repeating known failure setups.
+2. 3-consecutive-loss circuit breaker triggers an automatic 4-hour trading pause unless explicitly overridden by user.
+3. Secure API connection and order placement for both Virtual simulation and Live brokerage (Alpaca).
+4. Automatic post-mortem generation for every losing trade with root-cause analysis stored in dedicated memory files.
+5. Pre-trade memory filter that queries past loss post-mortems and prevents repeating known failure setups.
 
 ### Phase 5: Real-Time Dashboard UI & Monitoring
 **Goal:** Build a responsive web dashboard for portfolio tracking, equity curves, and system control.
