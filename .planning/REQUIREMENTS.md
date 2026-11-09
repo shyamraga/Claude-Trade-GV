@@ -18,6 +18,10 @@
 - [ ] **RISK-01**: Enforce strict risk limits (maximum daily drawdown, position size caps, automated stop-loss and take-profit orders).
 - [ ] **EXEC-01**: Connect to paper trading and live brokerage APIs (Alpaca API) for order submission and portfolio sync.
 
+### Continuous Learning & Post-Mortem Memory
+- [ ] **LEARN-01**: For every losing trade, automatically produce a crisp, structured post-mortem summary file (`post_mortems/LOSS_<SYMBOL>_<TIMESTAMP>.md`) detailing: setup, trigger, entry/exit, loss amount, root cause (e.g. false breakout, market regime change, volume trap, slippage), and specific lesson.
+- [ ] **LEARN-02**: Pre-trade memory filter that queries all historical loss post-mortems before initiating any new virtual or live trade; rejects setups matching prior failure patterns or adjusts parameters.
+
 ### User Interface & Monitoring
 - [ ] **UI-01**: Real-time web dashboard displaying portfolio equity curve, open positions, active signals, and system logs.
 

@@ -21,6 +21,7 @@ Accurate, real-time automated trading decision support and risk-managed executio
 - [ ] **AI-01**: AI-powered market sentiment and news analysis using Claude API
 - [ ] **RISK-01**: Automated risk management (stop-loss, take-profit, position sizing, daily drawdown limits)
 - [ ] **EXEC-01**: Brokerage execution adapter (Alpaca / paper trading support)
+- [ ] **LEARN-01**: Automated trade loss post-mortem generator (crisp root-cause analysis stored in dedicated memory files) and pre-trade memory check loop to continuously improve setups
 - [ ] **UI-01**: Real-time dashboard for portfolio monitoring, performance tracking, and manual override
 
 ### Out of Scope

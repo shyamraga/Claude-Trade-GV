@@ -29,12 +29,14 @@ Claude Trading is structured into 5 vertical MVP phases, taking the platform fro
 2. Claude API correctly evaluates market sentiment and outputs structured confidence scores.
 3. AI insights incorporated into trading signal decisions.
 
-### Phase 4: Risk Management & Execution Adapter
-**Goal:** Build risk controls and brokerage execution adapters (Alpaca paper trading).
-**Requirements:** RISK-01, EXEC-01
+### Phase 4: Risk Management, Dual Execution & Post-Mortem Learning Loop
+**Goal:** Build risk controls, dual-mode execution (Virtual & Live), and automated trade loss post-mortem continuous learning memory.
+**Requirements:** RISK-01, EXEC-01, LEARN-01, LEARN-02
 **Success Criteria:**
 1. Automated stop-loss, take-profit, and max daily drawdown circuit breaker.
-2. Secure API connection and order placement with Alpaca paper trading.
+2. Secure API connection and order placement for both Virtual simulation and Live brokerage (Alpaca).
+3. Automatic post-mortem generation for every losing trade with root-cause analysis stored in dedicated memory files.
+4. Pre-trade memory filter that queries past loss post-mortems and prevents repeating known failure setups.
 
 ### Phase 5: Real-Time Dashboard UI & Monitoring
 **Goal:** Build a responsive web dashboard for portfolio tracking, equity curves, and system control.
