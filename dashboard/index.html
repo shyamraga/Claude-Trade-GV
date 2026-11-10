@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Claude Trading | Autonomous AI Dashboard</title>
+  <link rel="stylesheet" href="/styles.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+</head>
+<body class="oled-theme">
+  <!-- TOP HEADER -->
+  <header class="top-nav">
+    <div class="nav-left">
+      <div class="brand">
+        <span class="brand-icon">⚡</span>
+        <div class="brand-text">
+          <h1>CLAUDE TRADING</h1>
+          <span class="sub-brand">AUTONOMOUS RISK & EXECUTION ENGINE</span>
+        </div>
+      </div>
+      <div class="engine-status-badge" id="engineStatusBadge">
+        <span class="status-pulse-dot"></span>
+        <span class="status-label" id="engineModeText">VIRTUAL MODE</span>
+      </div>
+    </div>
+
+    <div class="nav-center">
+      <div class="quick-metric">
+        <span class="metric-lbl">PORTFOLIO VALUE</span>
+        <span class="metric-val mono" id="hdrPortfolioVal">$100,000.00</span>
+      </div>
+      <div class="metric-divider"></div>
+      <div class="quick-metric">
+        <span class="metric-lbl">CASH BALANCE</span>
+        <span class="metric-val mono" id="hdrCashVal">$100,000.00</span>
+      </div>
+      <div class="metric-divider"></div>
+      <div class="quick-metric">
+        <span class="metric-lbl">DAY TRADES</span>
+        <span class="metric-val mono text-accent" id="hdrDayTrades">3 / 3</span>
+      </div>
+    </div>
+
+    <div class="nav-right">
+      <div class="mode-switch-wrapper">
+        <span class="mode-switch-label">MODE:</span>
+        <div class="segmented-control" id="modeSelector">
+          <button class="seg-btn active" data-mode="VIRTUAL" id="btnVirtualMode">PAPER</button>
+          <button class="seg-btn" data-mode="LIVE" id="btnLiveMode">LIVE</button>
+        </div>
+      </div>
+      <button class="btn-refresh" id="btnManualRefresh" title="Refresh Live Data">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+          <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/>
+        </svg>
+      </button>
+    </div>
+  </header>
+
+  <!-- MAIN CONTAINER -->
+  <main class="dashboard-grid">
+    <!-- ROW 1: TOP STATS & CIRCUIT BREAKER BANNER -->
+    <section class="stats-row">
+      <!-- Card 1: Equity & Return -->
+      <div class="stat-card">
+        <div class="stat-header">
+          <span class="card-title">TOTAL EQUITY</span>
+          <span class="stat-tag tag-blue">M-to-M</span>
+        </div>
+        <div class="stat-main-number mono" id="cardEquity">$100,000.00</div>
+        <div class="stat-footer">
+          <span class="delta-badge positive" id="cardEquityReturn">+0.00%</span>
+          <span class="stat-footnote">Starting: $100,000.00</span>
+        </div>
+      </div>
+
+      <!-- Card 2: Buying Power & Allocation -->
+      <div class="stat-card">
+        <div class="stat-header">
+          <span class="card-title">BUYING POWER</span>
+          <span class="stat-tag tag-purple">REG-T 2X</span>
+        </div>
+        <div class="stat-main-number mono text-cyan" id="cardBuyingPower">$200,000.00</div>
+        <div class="stat-footer">
+          <span class="stat-footnote">Max Per Position: <strong>10.0% ($10k)</strong></span>
+        </div>
+      </div>
+
+      <!-- Card 3: Circuit Breaker Guardian -->
+      <div class="stat-card circuit-card" id="circuitCard">
+        <div class="stat-header">
+          <div class="flex-row items-center gap-2">
+            <span class="card-title">CIRCUIT BREAKER</span>
+            <span class="status-pill safe" id="circuitPill">ARMED & NORMAL</span>
+          </div>
+          <button class="btn-override" id="btnToggleOverride" title="Manual Safety Override">
+            OVERRIDE
+          </button>
+        </div>
+        <div class="circuit-metrics-grid">
+          <div class="circuit-metric">
+            <span class="sub-lbl">CONSECUTIVE LOSSES</span>
+            <div class="loss-pills" id="lossPills">
+              <span class="loss-dot"></span>
+              <span class="loss-dot"></span>
+              <span class="loss-dot"></span>
+              <span class="loss-count mono" id="lossCountText">0 / 3</span>
+            </div>
+          </div>
+          <div class="circuit-metric">
+            <span class="sub-lbl">DAILY DRAWDOWN</span>
+            <div class="progress-bar-wrap">
+              <div class="progress-bar-fill" id="drawdownBar" style="width: 0%;"></div>
+            </div>
+            <div class="flex-between mt-1">
+              <span class="micro-text mono" id="currentDrawdownText">0.00%</span>
+              <span class="micro-text text-muted">Limit: 3.00%</span>
+            </div>
+          </div>
+        </div>
+        <div class="circuit-cooldown-banner hidden" id="cooldownBanner">
+          <div class="cooldown-content">
+            <span class="warning-icon">⚠️</span>
+            <div class="cooldown-text">
+              <span class="cooldown-reason" id="cooldownReasonText">Cooldown Triggered</span>
+              <span class="cooldown-timer mono" id="cooldownTimerText">03:59:45 remaining</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Card 4: Continuous Learning Summary -->
+      <div class="stat-card">
+        <div class="stat-header">
+          <span class="card-title">CONTINUOUS LEARNING</span>
+          <span class="stat-tag tag-amber" id="learningActiveTag">ACTIVE</span>
+        </div>
+        <div class="learning-stat-body">
+          <div class="learning-count-row">
+            <span class="learning-number mono text-amber" id="postMortemCount">0</span>
+            <span class="learning-desc">Post-Mortem Rules In Memory</span>
+          </div>
+          <div class="learning-status-text" id="learningStatusText">
+            All trades guarded against prior failure patterns.
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ROW 2: CHART (LEFT) & EXECUTION PANEL (RIGHT) -->
+    <section class="main-workspace-row">
+      <!-- Main Chart Card -->
+      <div class="workspace-card chart-panel">
+        <div class="chart-header-bar">
+          <div class="symbol-control-group">
+            <div class="symbol-select-wrap">
+              <select id="symbolSelect" class="styled-select">
+                <option value="SPY">SPY (S&P 500 ETF)</option>
+                <option value="AAPL">AAPL (Apple Inc.)</option>
+                <option value="MSFT">MSFT (Microsoft)</option>
+                <option value="NVDA">NVDA (NVIDIA)</option>
+                <option value="TSLA">TSLA (Tesla Inc.)</option>
+              </select>
+            </div>
+            <div class="ohlc-summary mono" id="ohlcSummary">
+              <span class="ohlc-item">O: <strong id="valOpen">---</strong></span>
+              <span class="ohlc-item">H: <strong id="valHigh">---</strong></span>
+              <span class="ohlc-item">L: <strong id="valLow">---</strong></span>
+              <span class="ohlc-item">C: <strong id="valClose">---</strong></span>
+              <span class="ohlc-item" id="valChangeBadge">---</span>
+            </div>
+          </div>
+
+          <div class="chart-options-group">
+            <div class="timeframe-buttons" id="timeframeSelector">
+              <button class="tf-btn" data-tf="1m">1m</button>
+              <button class="tf-btn" data-tf="5m">5m</button>
+              <button class="tf-btn active" data-tf="15m">15m</button>
+              <button class="tf-btn" data-tf="1h">1h</button>
+              <button class="tf-btn" data-tf="1d">1D</button>
+            </div>
+            <div class="view-type-buttons" id="chartTypeSelector">
+              <button class="type-btn active" data-type="candle" title="Candlestick">🕯️</button>
+              <button class="type-btn" data-type="line" title="Line View">📈</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Canvas Container -->
+        <div class="canvas-viewport" id="chartViewport">
+          <canvas id="financialChartCanvas"></canvas>
+          <div class="chart-crosshair-tooltip hidden" id="chartTooltip"></div>
+        </div>
+
+        <div class="chart-footer-bar">
+          <div class="chart-status-indicator">
+            <span class="status-dot green"></span>
+            <span class="chart-footnote" id="chartBarCount">Loaded 30 candles</span>
+          </div>
+          <span class="chart-attribution">Claude Intelligent Datafeed • Real-time OHLCV</span>
+        </div>
+      </div>
+
+      <!-- Quick Execution & Order Dispatch Panel -->
+      <div class="workspace-card execution-panel">
+        <div class="panel-header">
+          <div class="flex-row items-center gap-2">
+            <span class="panel-icon">🎯</span>
+            <h2 class="panel-title">ORDER DISPATCH</h2>
+          </div>
+          <span class="stat-tag tag-green">READY</span>
+        </div>
+
+        <form id="orderForm" class="order-form">
+          <div class="form-row">
+            <div class="form-group flex-1">
+              <label for="orderSymbol">TICKER</label>
+              <input type="text" id="orderSymbol" class="styled-input mono uppercase" value="SPY" required>
+            </div>
+            <div class="form-group flex-1">
+              <label for="orderStrategy">STRATEGY</label>
+              <select id="orderStrategy" class="styled-select">
+                <option value="ORB">Opening Range Breakout</option>
+                <option value="TrendFollowing">Trend Following</option>
+                <option value="MeanReversion">Mean Reversion</option>
+                <option value="MANUAL">Manual Discretionary</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group flex-1">
+              <label for="orderPrice">EST. PRICE ($)</label>
+              <input type="number" id="orderPrice" step="0.01" class="styled-input mono" value="150.00" required>
+            </div>
+            <div class="form-group flex-1">
+              <label for="orderQuantity">SHARES</label>
+              <input type="number" id="orderQuantity" step="1" min="1" class="styled-input mono" value="10" required>
+            </div>
+          </div>
+
+          <div class="action-buttons-grid">
+            <button type="button" class="btn-trade buy" id="btnBuyMarket">
+              <span class="trade-verb">BUY / LONG</span>
+              <span class="trade-subtext">Market Entry</span>
+            </button>
+            <button type="button" class="btn-trade sell" id="btnSellMarket">
+              <span class="trade-verb">SELL / SHORT</span>
+              <span class="trade-subtext">Market Entry</span>
+            </button>
+          </div>
+
+          <button type="button" class="btn-trade exit" id="btnExitPosition">
+            CLOSE ACTIVE POSITION
+          </button>
+        </form>
+
+        <!-- Pre-trade Guard Feedback Box -->
+        <div class="execution-feedback-box" id="executionFeedback">
+          <div class="feedback-header">
+            <span class="feedback-title">RISK & MEMORY GUARD</span>
+            <span class="feedback-badge" id="feedbackBadge">IDLE</span>
+          </div>
+          <p class="feedback-message" id="feedbackMessage">
+            Ready for execution. Pre-trade filters will inspect circuit breaker thresholds and historical post-mortem failure rules.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ROW 3: POSITIONS & RECENT ACTIVITY -->
+    <section class="positions-and-trades-row">
+      <!-- Active Positions -->
+      <div class="workspace-card flex-2">
+        <div class="panel-header">
+          <div class="flex-row items-center gap-2">
+            <span class="panel-icon">💼</span>
+            <h2 class="panel-title">ACTIVE POSITIONS</h2>
+          </div>
+          <span class="count-badge" id="openPositionCount">0 Open</span>
+        </div>
+
+        <div class="table-responsive">
+          <table class="data-table" id="positionsTable">
+            <thead>
+              <tr>
+                <th>SYMBOL</th>
+                <th>SIDE</th>
+                <th class="text-right">SHARES</th>
+                <th class="text-right">ENTRY</th>
+                <th class="text-right">CURRENT</th>
+                <th class="text-right">MARKET VAL</th>
+                <th class="text-right">UNREALIZED P&L</th>
+                <th class="text-center">ACTION</th>
+              </tr>
+            </thead>
+            <tbody id="positionsTableBody">
+              <tr>
+                <td colspan="8" class="text-center text-muted py-6">No open positions. Ready to trade.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Trade History -->
+      <div class="workspace-card flex-1">
+        <div class="panel-header">
+          <div class="flex-row items-center gap-2">
+            <span class="panel-icon">📋</span>
+            <h2 class="panel-title">TRADE LOG</h2>
+          </div>
+          <span class="count-badge" id="tradesCount">0 Total</span>
+        </div>
+
+        <div class="trade-log-stream" id="tradeLogStream">
+          <div class="empty-state-text">No trades executed today.</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ROW 4: CONTINUOUS LEARNING & POST-MORTEM INSPECTOR -->
+    <section class="post-mortem-section">
+      <div class="workspace-card">
+        <div class="panel-header">
+          <div class="flex-row items-center gap-2">
+            <span class="panel-icon">🧠</span>
+            <h2 class="panel-title">CONTINUOUS LEARNING & POST-MORTEM INSPECTOR</h2>
+          </div>
+          <div class="flex-row items-center gap-2">
+            <span class="stat-tag tag-purple">AUTONOMOUS MEMORY</span>
+            <span class="stat-tag tag-blue">PRE-TRADE FILTER</span>
+          </div>
+        </div>
+
+        <p class="section-description">
+          When the engine exits any trade at a loss, a comprehensive post-mortem root-cause analysis is autonomously generated and registered into persistent memory. The pre-trade risk filter matches future orders against these learned patterns to prevent repeated mistakes.
+        </p>
+
+        <div class="post-mortem-cards-grid" id="postMortemGrid">
+          <div class="empty-state-text">No loss post-mortems logged. All executions are operating within safe bounds.</div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- TOAST NOTIFICATIONS -->
+  <div class="toast-container" id="toastContainer"></div>
+
+  <script src="/app.js"></script>
+</body>
+</html>
