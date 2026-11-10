@@ -274,7 +274,7 @@ body.oled-theme {
 /* Stats Row */
 .stats-row {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
   gap: 16px;
 }
 
@@ -351,6 +351,11 @@ body.oled-theme {
 .delta-badge.negative {
   background-color: rgba(239, 83, 80, 0.15);
   color: var(--color-bearish);
+}
+
+.delta-badge.neutral {
+  background-color: rgba(148, 163, 184, 0.15);
+  color: var(--text-secondary);
 }
 
 .stat-footnote {
@@ -1038,6 +1043,19 @@ body.oled-theme {
   transform: translateY(-1px);
 }
 
+.pm-card.win {
+  border-left-color: var(--color-bullish);
+}
+
+.pm-card.win:hover {
+  border-left-color: var(--color-bullish);
+}
+
+.pm-card.win .pm-rule-box {
+  background-color: rgba(38, 166, 154, 0.08);
+  border-color: rgba(38, 166, 154, 0.25);
+}
+
 .pm-header {
   display: flex;
   justify-content: space-between;
@@ -1057,6 +1075,16 @@ body.oled-theme {
   font-weight: 700;
   color: var(--color-bearish);
   background-color: rgba(239, 83, 80, 0.15);
+  padding: 2px 6px;
+  border-radius: var(--radius-sm);
+}
+
+.pm-win-badge {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--color-bullish);
+  background-color: rgba(38, 166, 154, 0.15);
   padding: 2px 6px;
   border-radius: var(--radius-sm);
 }

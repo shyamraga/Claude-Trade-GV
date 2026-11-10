@@ -115,6 +115,20 @@ class ExecutionEngine:
                 logger.info(f"No open position to exit for {symbol}.")
                 return None
 
+            # If entry record is missing, reconstruct from existing position so closed trade is logged
+            if symbol not in self._entry_records:
+                entry_side = OrderSide.SELL if existing_pos.side.upper() == "SHORT" else OrderSide.BUY
+                self._entry_records[symbol] = Order(
+                    order_id=f"entry_{symbol}",
+                    symbol=symbol,
+                    side=entry_side,
+                    order_type=OrderType.MARKET,
+                    quantity=existing_pos.quantity,
+                    average_fill_price=existing_pos.entry_price,
+                    filled_at=existing_pos.opened_at or datetime.now(),
+                    strategy_name=getattr(existing_pos, "strategy", strategy_name) or strategy_name,
+                )
+
             # To exit a SHORT position, submit BUY (cover); to exit a LONG position, submit SELL
             exit_side = OrderSide.BUY if existing_pos.side.upper() == "SHORT" else OrderSide.SELL
             order = Order(
@@ -261,18 +275,34 @@ class ExecutionEngine:
             self.trade_history.append(trade_record)
             self.circuit_breaker.record_trade(trade_record)
 
-            # 6. Automatic Continuous Learning: Generate Post-Mortem on Loss
-            if trade_record.pnl < 0:
+            # 6. Automatic Continuous Learning: Generate Post-Mortem / Debrief on EVERY closed trade
+            is_loss = trade_record.pnl < 0
+            outcome = "LOSS" if is_loss else "WIN"
+            if is_loss:
                 logger.warning(
                     f"AUTOMATIC LOSS POST-MORTEM TRIGGERED: -${abs(trade_record.pnl):.2f} on {symbol} ({trade_side})"
                 )
-                self.post_mortem_repo.create_post_mortem(
-                    trade=trade_record,
-                    root_cause=f"Adverse price movement following {order.strategy_name} {trade_side} entry",
-                    market_condition="Live market conditions deviated from entry hypothesis",
-                    preventative_rule=f"Exercise caution with {order.strategy_name} on {symbol}; verify higher-timeframe trend alignment",
-                    tags=[symbol, order.strategy_name, "automated_loss", trade_side.lower()],
+                root_cause = f"Adverse price movement following {order.strategy_name} {trade_side} entry ({reason})"
+                market_cond = "Live market conditions deviated from entry hypothesis"
+                rule = f"Exercise caution with {order.strategy_name} on {symbol}; verify higher-timeframe trend alignment"
+                tags = [symbol, order.strategy_name, "loss", trade_side.lower(), reason.lower()]
+            else:
+                logger.info(
+                    f"AUTOMATIC WIN TRADE DEBRIEF TRIGGERED: +${abs(trade_record.pnl):.2f} on {symbol} ({trade_side})"
                 )
+                root_cause = f"Target achieved or favorable momentum following {order.strategy_name} {trade_side} entry ({reason})"
+                market_cond = "Market momentum aligned with entry hypothesis"
+                rule = f"Validated setup: continue executing high-confidence setups on {symbol}"
+                tags = [symbol, order.strategy_name, "win", trade_side.lower(), reason.lower()]
+
+            self.post_mortem_repo.create_post_mortem(
+                trade=trade_record,
+                root_cause=root_cause,
+                market_condition=market_cond,
+                preventative_rule=rule,
+                tags=tags,
+                outcome=outcome,
+            )
         else:
             # Opening new position (either LONG or SHORT)
             self._entry_records[symbol] = order

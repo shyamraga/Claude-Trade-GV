@@ -83,7 +83,7 @@
         <div class="stat-main-number mono" id="cardEquity">$100,000.00</div>
         <div class="stat-footer">
           <span class="delta-badge positive" id="cardEquityReturn">+0.00%</span>
-          <span class="stat-footnote">Starting: $100,000.00</span>
+          <span class="stat-footnote" id="cardEquityFootnote">Starting: $100,000.00</span>
         </div>
       </div>
 
@@ -142,7 +142,20 @@
         </div>
       </div>
 
-      <!-- Card 4: Continuous Learning Summary -->
+      <!-- Card 4: Realized P&L & Closed Trades Summary -->
+      <div class="stat-card" id="realizedSummaryCard">
+        <div class="stat-header">
+          <span class="card-title">REALIZED P&L TODAY</span>
+          <span class="stat-tag tag-green" id="realizedPnlTag">0 CLOSED</span>
+        </div>
+        <div class="stat-main-number mono" id="cardRealizedPnl">$0.00</div>
+        <div class="stat-footer">
+          <span class="delta-badge neutral" id="cardWinLossRate">0W - 0L (0%)</span>
+          <span class="stat-footnote" id="cardAvgTradeFootnote">Avg: $0.00 / trade</span>
+        </div>
+      </div>
+
+      <!-- Card 5: Continuous Learning Summary -->
       <div class="stat-card">
         <div class="stat-header">
           <span class="card-title">CONTINUOUS LEARNING</span>
@@ -151,10 +164,10 @@
         <div class="learning-stat-body">
           <div class="learning-count-row">
             <span class="learning-number mono text-amber" id="postMortemCount">0</span>
-            <span class="learning-desc">Post-Mortem Rules In Memory</span>
+            <span class="learning-desc">Trade Debriefs In Memory</span>
           </div>
           <div class="learning-status-text" id="learningStatusText">
-            All trades guarded against prior failure patterns.
+            Every closed trade analyzed; loss patterns autonomously filtered.
           </div>
         </div>
       </div>
@@ -367,11 +380,11 @@
         </div>
 
         <p class="section-description">
-          When the engine exits any trade at a loss, a comprehensive post-mortem root-cause analysis is autonomously generated and registered into persistent memory. The pre-trade risk filter matches future orders against these learned patterns to prevent repeated mistakes.
+          When the engine exits any trade (profit or loss), an automated post-mortem debrief analysis is generated and stored in memory. Past loss setups are autonomously filtered by pre-trade risk guards, while winning setups validate active strategies.
         </p>
 
         <div class="post-mortem-cards-grid" id="postMortemGrid">
-          <div class="empty-state-text">No loss post-mortems logged. All executions are operating within safe bounds.</div>
+          <div class="empty-state-text">No trade debriefs logged yet. Closed trades will appear here automatically.</div>
         </div>
       </div>
     </section>

@@ -522,42 +522,83 @@ async function fetchTradesData() {
     state.trades = data.trades || [];
 
     const stream = document.getElementById('tradeLogStream');
-    document.getElementById('tradesCount').textContent = `${state.trades.length} Total`;
+    const tradesCountEl = document.getElementById('tradesCount');
+    if (tradesCountEl) tradesCountEl.textContent = `${state.trades.length} Total`;
+
+    // Compute Summary Realized P&L, Win/Loss rate, and average
+    let totalRealized = 0;
+    let wins = 0;
+    let losses = 0;
+    state.trades.forEach(t => {
+      const pnl = t.pnl !== undefined ? t.pnl : 0;
+      totalRealized += pnl;
+      if (pnl > 0) wins++;
+      else if (pnl < 0) losses++;
+    });
+
+    const totalClosed = state.trades.length;
+    const winRate = totalClosed > 0 ? ((wins / totalClosed) * 100).toFixed(1) : '0.0';
+    const avgTrade = totalClosed > 0 ? (totalRealized / totalClosed) : 0;
+
+    const elRealized = document.getElementById('cardRealizedPnl');
+    if (elRealized) {
+      elRealized.textContent = formatCurrency(totalRealized);
+      elRealized.style.color = totalRealized >= 0 ? '#26A69A' : '#EF5350';
+    }
+
+    const tagRealized = document.getElementById('realizedPnlTag');
+    if (tagRealized) {
+      tagRealized.textContent = `${totalClosed} CLOSED`;
+      tagRealized.className = `stat-tag ${totalRealized >= 0 ? 'tag-green' : 'tag-amber'}`;
+    }
+
+    const elWinLoss = document.getElementById('cardWinLossRate');
+    if (elWinLoss) {
+      elWinLoss.textContent = `${wins}W - ${losses}L (${winRate}%)`;
+      elWinLoss.className = `delta-badge ${wins >= losses && totalClosed > 0 ? 'positive' : (losses > wins ? 'negative' : 'neutral')}`;
+    }
+
+    const elAvg = document.getElementById('cardAvgTradeFootnote');
+    if (elAvg) {
+      elAvg.textContent = `Avg: ${formatCurrency(avgTrade)} / trade`;
+    }
 
     if (state.trades.length === 0) {
-      stream.innerHTML = `<div class="empty-state-text">No trades executed today.</div>`;
+      if (stream) stream.innerHTML = `<div class="empty-state-text">No trades executed today.</div>`;
       return;
     }
 
-    stream.innerHTML = state.trades
-      .slice(-10)
-      .reverse()
-      .map((t) => {
-        const isBuy = (t.side || t.action) === 'BUY';
-        const tagClass = isBuy ? 'BUY' : 'SELL';
-        const sideText = isBuy ? 'LONG' : 'SHORT';
-        const pnl = t.pnl !== undefined ? t.pnl : 0;
-        const pnlText = pnl !== 0 ? `<span class="mono ${pnl > 0 ? 'text-bullish' : 'text-bearish'}">${formatCurrency(pnl)}</span>` : '<span class="text-muted">$0.00</span>';
-        const reasonClass = t.reason || 'SIGNAL_EXIT';
-        const reasonLabel = (t.reason || 'EXIT').replace('_', ' ');
-        const exitPrice = t.exit_price || t.entry_price || t.price || 0;
+    if (stream) {
+      stream.innerHTML = state.trades
+        .slice(-10)
+        .reverse()
+        .map((t) => {
+          const isBuy = (t.side || t.action) === 'BUY';
+          const tagClass = isBuy ? 'BUY' : 'SELL';
+          const sideText = isBuy ? 'LONG' : 'SHORT';
+          const pnl = t.pnl !== undefined ? t.pnl : 0;
+          const pnlText = pnl !== 0 ? `<span class="mono ${pnl > 0 ? 'text-bullish' : 'text-bearish'}">${formatCurrency(pnl)}</span>` : '<span class="text-muted">$0.00</span>';
+          const reasonClass = t.reason || 'SIGNAL_EXIT';
+          const reasonLabel = (t.reason || 'EXIT').replace('_', ' ');
+          const exitPrice = t.exit_price || t.entry_price || t.price || 0;
 
-        return `
-          <div class="trade-item">
-            <div class="trade-item-left">
-              <span class="trade-action-tag ${tagClass}">${sideText}</span>
-              <strong>${t.symbol}</strong>
-              <span class="text-muted">${t.quantity} @ ${formatCurrency(exitPrice)}</span>
-              <span class="trade-reason-chip ${reasonClass}">${reasonLabel}</span>
+          return `
+            <div class="trade-item">
+              <div class="trade-item-left">
+                <span class="trade-action-tag ${tagClass}">${sideText}</span>
+                <strong>${t.symbol}</strong>
+                <span class="text-muted">${t.quantity} @ ${formatCurrency(exitPrice)}</span>
+                <span class="trade-reason-chip ${reasonClass}">${reasonLabel}</span>
+              </div>
+              <div class="trade-item-right mono text-right">
+                <div>${pnlText}</div>
+                <div class="timestamp-chip" title="Opened ➔ Closed">${formatTime(t.entry_time)} ➔ ${formatTime(t.exit_time)}</div>
+              </div>
             </div>
-            <div class="trade-item-right mono text-right">
-              <div>${pnlText}</div>
-              <div class="timestamp-chip" title="Opened ➔ Closed">${formatTime(t.entry_time)} ➔ ${formatTime(t.exit_time)}</div>
-            </div>
-          </div>
-        `;
-      })
-      .join('');
+          `;
+        })
+        .join('');
+    }
   } catch (err) {
     console.error('Failed to fetch trades:', err);
   }
@@ -570,32 +611,46 @@ async function fetchPostMortemsData() {
     const data = await res.json();
     state.postMortems = data.post_mortems || [];
 
-    document.getElementById('postMortemCount').textContent = state.postMortems.length;
+    const pmCountEl = document.getElementById('postMortemCount');
+    if (pmCountEl) {
+      pmCountEl.textContent = state.postMortems.length;
+    }
     const grid = document.getElementById('postMortemGrid');
+    if (!grid) return;
 
     if (state.postMortems.length === 0) {
-      grid.innerHTML = `<div class="empty-state-text">No loss post-mortems logged. All executions are operating within safe bounds.</div>`;
+      grid.innerHTML = `<div class="empty-state-text">No trade debriefs logged yet. Closed trades will appear here automatically.</div>`;
       return;
     }
 
     grid.innerHTML = state.postMortems
       .map((pm) => {
-        const lossVal = formatCurrency(pm.loss_amount);
-        const tags = (pm.failure_tags || []).map((t) => `<span class="pm-tag">#${t}</span>`).join('');
+        const isWin = pm.outcome === 'WIN' || (pm.pnl !== undefined && pm.pnl > 0);
+        const cardClass = isWin ? 'pm-card win' : 'pm-card';
+        const pnlVal = pm.pnl !== undefined ? pm.pnl : (isWin ? pm.loss_amount : -pm.loss_amount);
+        const badgeClass = isWin ? 'pm-win-badge' : 'pm-loss-badge';
+        const badgeText = isWin ? `+${formatCurrency(Math.abs(pnlVal))}` : `-${formatCurrency(Math.abs(pnlVal))}`;
+        const outcomeTag = isWin ? '<span class="status-pill safe" style="font-size:9px;padding:2px 6px;">WIN DEBRIEF</span>' : '<span class="status-pill warning" style="font-size:9px;padding:2px 6px;">LOSS POST-MORTEM</span>';
+        const rootLbl = isWin ? 'SETUP VALIDATION' : 'ROOT CAUSE';
+        const ruleLbl = isWin ? 'VALIDATED SETUP RULE' : 'AUTONOMOUS PREVENTATIVE RULE';
+        const tags = (pm.tags || pm.failure_tags || []).map((t) => `<span class="pm-tag">#${t}</span>`).join('');
 
         return `
-          <div class="pm-card">
+          <div class="${cardClass}">
             <div class="pm-header">
-              <span class="pm-symbol">${pm.symbol} • ${pm.strategy_name || 'ORB'}</span>
-              <span class="pm-loss-badge">-${lossVal}</span>
+              <div class="flex-row items-center gap-2">
+                <span class="pm-symbol">${pm.symbol} • ${pm.strategy_name || 'ORB'}</span>
+                ${outcomeTag}
+              </div>
+              <span class="${badgeClass}">${badgeText}</span>
             </div>
             <div class="pm-section-block">
-              <span class="pm-lbl">ROOT CAUSE</span>
-              <p class="pm-text">${pm.root_cause || 'Execution loss triggered auto-analysis.'}</p>
+              <span class="pm-lbl">${rootLbl}</span>
+              <p class="pm-text">${pm.root_cause || (isWin ? 'Execution achieved take-profit or positive momentum.' : 'Execution loss triggered auto-analysis.')}</p>
             </div>
             <div class="pm-rule-box">
-              <span class="pm-lbl" style="color:#C084FC;">AUTONOMOUS PREVENTATIVE RULE</span>
-              <p class="pm-rule-text">"${pm.preventative_rule || 'Enforce stricter stop loss verification.'}"</p>
+              <span class="pm-lbl" style="color:${isWin ? '#26A69A' : '#C084FC'};">${ruleLbl}</span>
+              <p class="pm-rule-text">"${pm.preventative_rule || (isWin ? 'Continue executing validated setup when volume confirms.' : 'Enforce stricter stop loss verification.')}"</p>
             </div>
             <div class="pm-tags-row">
               ${tags}
@@ -686,6 +741,12 @@ async function quickExitPosition(symbol, estPrice) {
     showToast(`Exit error: ${err.message}`, 'error');
   }
 }
+
+// Global aliases for button click handlers
+window.quickExitPosition = quickExitPosition;
+window.exitPosition = function(symbol) {
+  return quickExitPosition(symbol);
+};
 
 async function toggleCircuitBreakerOverride() {
   const current = state.circuitBreaker ? state.circuitBreaker.manual_override : false;
@@ -837,6 +898,15 @@ async function updateLiveMetrics() {
     }
 
     let realizedPnl = 0;
+    try {
+      const tradesRes = await fetch('/api/trades');
+      if (tradesRes.ok) {
+        const tradesData = await tradesRes.json();
+        state.trades = tradesData.trades || [];
+      }
+    } catch (e) {
+      // fallback to state.trades in memory
+    }
     if (state.trades && state.trades.length > 0) {
       state.trades.forEach(t => { realizedPnl += (t.pnl || 0); });
     }
@@ -896,6 +966,7 @@ async function updateLivePositions() {
     if (!tradesRes.ok) return;
     const tradesData = await tradesRes.json();
     const trades = tradesData.trades || [];
+    state.trades = trades;
 
     const fillsStream = document.getElementById('liveFillsStream');
     const fillsBadge = document.getElementById('liveFillsBadge');

@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 
 @dataclass
 class TradePostMortem:
-    """Detailed post-mortem analysis of a losing trade."""
+    """Detailed post-mortem / debrief analysis of a closed trade (win or loss)."""
 
     post_mortem_id: str
     symbol: str
@@ -29,6 +29,9 @@ class TradePostMortem:
     market_condition: str  # e.g., "Choppy high-volatility sideways market"
     preventative_rule: str  # e.g., "Do not enter breakouts when volume is below 20-day SMA"
     tags: List[str]
+    outcome: str = "LOSS"  # "WIN" or "LOSS"
+    pnl: float = 0.0
+    pnl_pct: float = 0.0
 
     def to_dict(self) -> dict:
         """Serialize to dictionary."""
@@ -45,10 +48,32 @@ class TradePostMortem:
             d["entry_time"] = datetime.fromisoformat(d["entry_time"])
         if isinstance(d.get("exit_time"), str):
             d["exit_time"] = datetime.fromisoformat(d["exit_time"])
+        if "outcome" not in d:
+            d["outcome"] = "LOSS"
+        if "pnl" not in d:
+            d["pnl"] = -d.get("loss_amount", 0.0) if d["outcome"] == "LOSS" else d.get("loss_amount", 0.0)
+        if "pnl_pct" not in d:
+            d["pnl_pct"] = -d.get("loss_pct", 0.0) if d["outcome"] == "LOSS" else d.get("loss_pct", 0.0)
         return cls(**d)
 
     def to_markdown(self) -> str:
         """Format post-mortem as readable Markdown for storage in project memory."""
+        if self.outcome == "WIN":
+            return f"""# Trade Debrief (Win): {self.symbol} ({self.strategy_name})
+
+- **Date:** {self.exit_time.strftime('%Y-%m-%d %H:%M:%S')}
+- **Realized P&L:** +${abs(self.pnl):,.2f} (+{abs(self.pnl_pct):.2%})
+- **Entry / Exit:** ${self.entry_price:.2f} / ${self.exit_price:.2f}
+- **Market Context:** {self.market_condition}
+
+## Setup Validation
+{self.root_cause}
+
+## Takeaway & Guidance
+> **Rule:** {self.preventative_rule}
+
+**Tags:** {', '.join(self.tags)}
+"""
         return f"""# Trade Loss Post-Mortem: {self.symbol} ({self.strategy_name})
 
 - **Date:** {self.exit_time.strftime('%Y-%m-%d %H:%M:%S')}
@@ -93,8 +118,9 @@ class PostMortemRepository:
         market_condition: str,
         preventative_rule: str,
         tags: Optional[List[str]] = None,
+        outcome: str = "LOSS",
     ) -> TradePostMortem:
-        """Create and persist a new post-mortem for a losing trade."""
+        """Create and persist a new post-mortem or debrief for a closed trade."""
         pm_id = f"pm_{trade.symbol}_{int(trade.exit_time.timestamp())}"
         post_mortem = TradePostMortem(
             post_mortem_id=pm_id,
@@ -109,7 +135,10 @@ class PostMortemRepository:
             root_cause=root_cause,
             market_condition=market_condition,
             preventative_rule=preventative_rule,
-            tags=tags or [trade.symbol, trade.strategy_name, "loss"],
+            tags=tags or [trade.symbol, trade.strategy_name, outcome.lower()],
+            outcome=outcome,
+            pnl=trade.pnl,
+            pnl_pct=trade.pnl_pct,
         )
 
         # Save JSON data and Markdown record
@@ -120,7 +149,7 @@ class PostMortemRepository:
         md_path.write_text(post_mortem.to_markdown(), encoding="utf-8")
 
         self._cache.append(post_mortem)
-        logger.info(f"Post-mortem created and saved to {json_path.name}")
+        logger.info(f"Post-mortem ({outcome}) created and saved to {json_path.name}")
         return post_mortem
 
     def check_pre_trade_filter(
@@ -136,7 +165,9 @@ class PostMortemRepository:
         symbol = symbol.upper()
         similar_losses = [
             pm for pm in self._cache
-            if pm.symbol == symbol and pm.strategy_name == strategy_name
+            if pm.symbol == symbol and pm.strategy_name == strategy_name and (
+                getattr(pm, "outcome", "LOSS") == "LOSS" or "loss" in [t.lower() for t in pm.tags]
+            )
         ]
 
         if not similar_losses:

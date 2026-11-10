@@ -207,6 +207,36 @@ class TestExecutionEngine(unittest.TestCase):
         self.assertEqual(len(recent_pms), 1)
         self.assertEqual(recent_pms[0].symbol, "NVDA")
         self.assertEqual(recent_pms[0].loss_amount, 500.0)
+        self.assertEqual(recent_pms[0].outcome, "LOSS")
+
+    def test_winning_trade_triggers_automatic_post_mortem_debrief(self):
+        """Test that closing a trade at a profit also generates an automated debrief and doesn't block future trades."""
+        self.virtual_broker.set_market_price("AAPL", 150.0)
+
+        # 1. Buy @ 150
+        self.engine.execute_signal("AAPL", "BUY", 150.0, 20, strategy_name="TrendFollowing")
+
+        # 2. Price rallies to 160
+        self.virtual_broker.set_market_price("AAPL", 160.0)
+
+        # 3. Exit @ 160 (+$200 profit)
+        self.engine.execute_signal("AAPL", "EXIT", 160.0, 20, strategy_name="TrendFollowing")
+
+        # Verify trade record
+        self.assertEqual(len(self.engine.trade_history), 1)
+        self.assertEqual(self.engine.trade_history[0].pnl, 200.0)
+
+        # Verify Post-Mortem / Debrief was created in memory
+        recent_pms = self.post_mortem_repo.get_recent_post_mortems()
+        self.assertEqual(len(recent_pms), 1)
+        self.assertEqual(recent_pms[0].symbol, "AAPL")
+        self.assertEqual(recent_pms[0].outcome, "WIN")
+        self.assertEqual(recent_pms[0].pnl, 200.0)
+
+        # Winning debrief must NOT block pre-trade filter!
+        allowed, reason = self.post_mortem_repo.check_pre_trade_filter("AAPL", "TrendFollowing")
+        self.assertTrue(allowed)
+        self.assertIsNone(reason)
 
     def test_position_timestamp_and_exit_targets(self):
         """Test that position records opened_at timestamp and target stop-loss / take-profit."""
