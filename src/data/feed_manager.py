@@ -33,7 +33,11 @@ class FeedManager:
         """Fetch historical bars with automatic fallback."""
         symbol = symbol.upper().strip()
 
-        # Try Alpaca first
+        # Crypto pairs (e.g. BTC-USD) are retrieved directly from Yahoo
+        if "-USD" in symbol or "/" in symbol:
+            return self.yahoo.get_bars(symbol, timeframe=timeframe, limit=limit)
+
+        # Try Alpaca first for equities
         if self.primary_provider == "alpaca" and self.alpaca:
             try:
                 bars = self.alpaca.get_bars(symbol, timeframe=timeframe, limit=limit, start=start, end=end)

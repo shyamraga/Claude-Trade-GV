@@ -34,8 +34,13 @@ class VirtualBroker(BaseBroker):
             self.positions[symbol].update_price(price)
 
     def get_account(self) -> AccountInfo:
-        """Calculate and return account info."""
-        positions_val = sum(pos.current_price * pos.quantity for pos in self.positions.values())
+        """Calculate and return account info taking into account both long and short positions."""
+        # For long positions: value is current_price * quantity
+        # For short positions: value is entry_price * quantity + unrealized_pnl (collateral + pnl)
+        positions_val = sum(
+            (pos.entry_price * pos.quantity) + pos.unrealized_pnl
+            for pos in self.positions.values()
+        )
         portfolio_val = self.cash + positions_val
         buying_power = self.cash * 2.0  # 2x margin simulation
 
@@ -55,7 +60,7 @@ class VirtualBroker(BaseBroker):
         return self.positions.get(symbol.upper())
 
     def submit_order(self, order: Order) -> Order:
-        """Process and simulate fill for submitted order."""
+        """Process and simulate fill for submitted order (supports LONG and SHORT)."""
         symbol = order.symbol.upper()
         market_price = self.market_prices.get(symbol, order.limit_price or 100.0)
 
@@ -66,51 +71,105 @@ class VirtualBroker(BaseBroker):
             fill_price = market_price * (1.0 - self.slippage_pct)
 
         fill_price = round(fill_price, 2)
-        cost = fill_price * order.quantity
+        current_pos = self.positions.get(symbol)
 
         if order.side == OrderSide.BUY:
-            if cost > self.cash:
-                order.status = OrderStatus.REJECTED
-                order.rejection_reason = f"Insufficient funds: required ${cost:,.2f}, available ${self.cash:,.2f}"
-                self.orders[order.order_id] = order
-                return order
+            # Case 1: BUY to COVER an existing SHORT position
+            if current_pos and current_pos.side.upper() == "SHORT":
+                shares_to_cover = min(order.quantity, current_pos.quantity)
+                realized_pnl = (current_pos.entry_price - fill_price) * shares_to_cover
+                # Return margin collateral plus/minus realized P&L to cash
+                margin_returned = (current_pos.entry_price * shares_to_cover) + realized_pnl
+                self.cash += margin_returned
 
-            # Deduct cash, add position
-            self.cash -= cost
-            if symbol in self.positions:
-                pos = self.positions[symbol]
-                total_shares = pos.quantity + order.quantity
-                avg_price = ((pos.entry_price * pos.quantity) + cost) / total_shares
-                pos.quantity = total_shares
-                pos.entry_price = round(avg_price, 2)
-                pos.update_price(market_price)
+                current_pos.quantity -= shares_to_cover
+                if current_pos.quantity == 0:
+                    del self.positions[symbol]
+                else:
+                    current_pos.update_price(market_price)
+
+            # Case 2: BUY to open or add to a LONG position
             else:
-                new_pos = Position(
-                    symbol=symbol,
-                    quantity=order.quantity,
-                    entry_price=fill_price,
-                    current_price=market_price,
-                )
-                new_pos.update_price(market_price)
-                self.positions[symbol] = new_pos
+                cost = fill_price * order.quantity
+                if cost > self.cash:
+                    order.status = OrderStatus.REJECTED
+                    order.rejection_reason = f"Insufficient funds: required ${cost:,.2f}, available ${self.cash:,.2f}"
+                    self.orders[order.order_id] = order
+                    return order
+
+                self.cash -= cost
+                if current_pos and current_pos.side.upper() == "LONG":
+                    total_shares = current_pos.quantity + order.quantity
+                    avg_price = ((current_pos.entry_price * current_pos.quantity) + cost) / total_shares
+                    current_pos.quantity = total_shares
+                    current_pos.entry_price = round(avg_price, 2)
+                    if order.stop_loss:
+                        current_pos.stop_loss = order.stop_loss
+                    if order.take_profit:
+                        current_pos.take_profit = order.take_profit
+                    current_pos.update_price(market_price)
+                else:
+                    new_pos = Position(
+                        symbol=symbol,
+                        quantity=order.quantity,
+                        entry_price=fill_price,
+                        current_price=market_price,
+                        side="LONG",
+                        opened_at=order.filled_at or datetime.now(),
+                        stop_loss=order.stop_loss,
+                        take_profit=order.take_profit,
+                        strategy=order.strategy_name or "MANUAL",
+                    )
+                    new_pos.update_price(market_price)
+                    self.positions[symbol] = new_pos
 
         elif order.side == OrderSide.SELL:
-            current_pos = self.positions.get(symbol)
-            if not current_pos or current_pos.quantity < order.quantity:
-                order.status = OrderStatus.REJECTED
-                order.rejection_reason = f"Cannot sell {order.quantity} shares of {symbol}: position size is {current_pos.quantity if current_pos else 0}"
-                self.orders[order.order_id] = order
-                return order
+            # Case 1: SELL to CLOSE an existing LONG position
+            if current_pos and current_pos.side.upper() == "LONG":
+                shares_to_sell = min(order.quantity, current_pos.quantity)
+                proceeds = fill_price * shares_to_sell
+                self.cash += proceeds
+                current_pos.quantity -= shares_to_sell
 
-            # Add proceeds, reduce position
-            proceeds = fill_price * order.quantity
-            self.cash += proceeds
-            current_pos.quantity -= order.quantity
+                if current_pos.quantity == 0:
+                    del self.positions[symbol]
+                else:
+                    current_pos.update_price(market_price)
 
-            if current_pos.quantity == 0:
-                del self.positions[symbol]
+            # Case 2: SELL to open or add to a SHORT position
             else:
-                current_pos.update_price(market_price)
+                margin_required = fill_price * order.quantity
+                if margin_required > self.cash:
+                    order.status = OrderStatus.REJECTED
+                    order.rejection_reason = f"Insufficient margin for short: required ${margin_required:,.2f}, available ${self.cash:,.2f}"
+                    self.orders[order.order_id] = order
+                    return order
+
+                self.cash -= margin_required
+                if current_pos and current_pos.side.upper() == "SHORT":
+                    total_shares = current_pos.quantity + order.quantity
+                    avg_price = ((current_pos.entry_price * current_pos.quantity) + margin_required) / total_shares
+                    current_pos.quantity = total_shares
+                    current_pos.entry_price = round(avg_price, 2)
+                    if order.stop_loss:
+                        current_pos.stop_loss = order.stop_loss
+                    if order.take_profit:
+                        current_pos.take_profit = order.take_profit
+                    current_pos.update_price(market_price)
+                else:
+                    new_pos = Position(
+                        symbol=symbol,
+                        quantity=order.quantity,
+                        entry_price=fill_price,
+                        current_price=market_price,
+                        side="SHORT",
+                        opened_at=order.filled_at or datetime.now(),
+                        stop_loss=order.stop_loss,
+                        take_profit=order.take_profit,
+                        strategy=order.strategy_name or "MANUAL",
+                    )
+                    new_pos.update_price(market_price)
+                    self.positions[symbol] = new_pos
 
         # Mark order filled
         order.status = OrderStatus.FILLED
@@ -119,7 +178,8 @@ class VirtualBroker(BaseBroker):
         order.filled_at = datetime.now()
 
         self.orders[order.order_id] = order
-        logger.info(f"Virtual order filled: {order.side.value} {order.quantity} {symbol} @ ${fill_price:.2f}")
+        action_name = "SHORT" if (order.side == OrderSide.SELL and (not current_pos or current_pos.side == "SHORT")) else order.side.value
+        logger.info(f"Virtual order filled: {action_name} {order.quantity} {symbol} @ ${fill_price:.2f}")
         return order
 
     def cancel_order(self, order_id: str) -> bool:
@@ -136,15 +196,17 @@ class VirtualBroker(BaseBroker):
         return self.orders.get(order_id)
 
     def close_position(self, symbol: str) -> Optional[Order]:
-        """Close full position at market."""
+        """Close full position at market (sells long or covers short)."""
         pos = self.get_position(symbol)
         if not pos:
             return None
 
+        # To close short, submit BUY; to close long, submit SELL
+        side = OrderSide.BUY if pos.side.upper() == "SHORT" else OrderSide.SELL
         order = Order(
             order_id=f"close_{uuid.uuid4().hex[:8]}",
             symbol=pos.symbol,
-            side=OrderSide.SELL,
+            side=side,
             order_type=OrderType.MARKET,
             quantity=pos.quantity,
         )

@@ -63,7 +63,7 @@ class RSIMeanReversionStrategy(Strategy):
 
                 # Confidence based on how deep the oversold was and how fast it recovered
                 oversold_depth = (self.oversold_threshold - min(prev_rsi, curr_rsi)) / self.oversold_threshold
-                confidence = min(0.6 + oversold_depth * 0.4, 0.90)
+                confidence = min(0.65 + oversold_depth * 0.35, 0.95)
 
                 signals.append(
                     Signal(
@@ -82,7 +82,33 @@ class RSIMeanReversionStrategy(Strategy):
                     )
                 )
 
-            # EXIT/SELL: RSI crosses above overbought threshold (potential top)
+            # SELL (Short Entry): RSI crosses below overbought threshold from above (bearish reversion)
+            elif prev_rsi is not None and prev_rsi > self.overbought_threshold and curr_rsi < self.overbought_threshold:
+                atr = atr_values[i]
+                stop_loss = bar.close + (atr * self.atr_multiplier) if atr else bar.close * 1.03
+
+                # Confidence based on how deep the overbought peak was
+                overbought_depth = (max(prev_rsi, curr_rsi) - self.overbought_threshold) / (100.0 - self.overbought_threshold) if self.overbought_threshold < 100.0 else 0.1
+                confidence = min(0.65 + overbought_depth * 0.35, 0.95)
+
+                signals.append(
+                    Signal(
+                        symbol=bar.symbol,
+                        action=SignalAction.SELL,
+                        timestamp=bar.timestamp,
+                        price=bar.close,
+                        confidence=round(confidence, 3),
+                        strategy_name=self.name,
+                        indicators={
+                            "rsi": curr_rsi,
+                            "atr": atr,
+                        },
+                        reason=f"RSI bearish reversion: RSI ({curr_rsi:.1f}) crossed back below overbought zone (> {self.overbought_threshold})",
+                        stop_loss=round(stop_loss, 2),
+                    )
+                )
+
+            # EXIT: RSI crosses above overbought threshold (potential top)
             elif prev_rsi is not None and curr_rsi > self.overbought_threshold and prev_rsi < self.overbought_threshold:
                 signals.append(
                     Signal(

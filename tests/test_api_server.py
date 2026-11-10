@@ -136,12 +136,24 @@ class TestDashboardAPIServer(unittest.TestCase):
             "price": 150.0,
             "quantity": 10,
             "strategy": "MOMENTUM",
+            "stop_loss": 147.0,
+            "take_profit": 156.0,
         }
         status, data = self._post("/api/execute", payload)
         self.assertEqual(status, 200)
         self.assertTrue(data.get("success"))
         self.assertEqual(data["order"]["symbol"], "AAPL")
         self.assertEqual(data["order"]["quantity"], 10)
+
+        # Check /api/positions has timestamps and exit targets
+        status_pos, pos_data = self._get("/api/positions")
+        self.assertEqual(status_pos, 200)
+        aapl_pos = next((p for p in pos_data["positions"] if p["symbol"] == "AAPL"), None)
+        self.assertIsNotNone(aapl_pos)
+        self.assertIsNotNone(aapl_pos.get("opened_at"))
+        self.assertEqual(aapl_pos.get("stop_loss"), 147.0)
+        self.assertEqual(aapl_pos.get("take_profit"), 156.0)
+        self.assertEqual(aapl_pos.get("strategy"), "MOMENTUM")
 
     def test_get_trades(self):
         """Test GET /api/trades endpoint."""

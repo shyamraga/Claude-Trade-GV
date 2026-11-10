@@ -35,6 +35,15 @@ env/
 *.sqlite3
 logs/
 *.log
+/data/
+
+# Caches & Graphify Artefacts
+graphify-out/cache/
+graphify-out/2026-11-10/
+graphify-out/*.tmp
+graphify-out/.*
+*.tmp
+.pytest_cache/
 
 # OS & IDE
 .DS_Store

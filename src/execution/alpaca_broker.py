@@ -9,6 +9,7 @@ from datetime import datetime
 
 from src.execution.broker_base import BaseBroker
 from src.execution.models import Order, OrderSide, OrderStatus, OrderType, Position, AccountInfo
+from src.data.alpaca_client import load_env_file
 
 logger = logging.getLogger(__name__)
 
@@ -23,6 +24,7 @@ class AlpacaBroker(BaseBroker):
         base_url: Optional[str] = None,
     ):
         """Initialize Alpaca trading client."""
+        load_env_file()
         self.api_key = api_key or os.getenv("APCA_API_KEY_ID")
         self.secret_key = secret_key or os.getenv("APCA_API_SECRET_KEY")
         self.base_url = (base_url or os.getenv("APCA_API_BASE_URL", "https://paper-api.alpaca.markets")).rstrip("/")
@@ -67,11 +69,14 @@ class AlpacaBroker(BaseBroker):
             items = self._request("/v2/positions")
             res = []
             for item in items:
+                raw_qty = int(item["qty"])
+                side = "SHORT" if (item.get("side", "").lower() == "short" or raw_qty < 0) else "LONG"
                 pos = Position(
                     symbol=item["symbol"],
-                    quantity=int(item["qty"]),
+                    quantity=abs(raw_qty),
                     entry_price=float(item["avg_entry_price"]),
                     current_price=float(item["current_price"]),
+                    side=side,
                     unrealized_pnl=float(item.get("unrealized_pl", 0.0)),
                     unrealized_pnl_pct=float(item.get("unrealized_plpc", 0.0)),
                 )
@@ -85,11 +90,14 @@ class AlpacaBroker(BaseBroker):
         """Fetch single position."""
         try:
             item = self._request(f"/v2/positions/{symbol.upper()}")
+            raw_qty = int(item["qty"])
+            side = "SHORT" if (item.get("side", "").lower() == "short" or raw_qty < 0) else "LONG"
             return Position(
                 symbol=item["symbol"],
-                quantity=int(item["qty"]),
+                quantity=abs(raw_qty),
                 entry_price=float(item["avg_entry_price"]),
                 current_price=float(item["current_price"]),
+                side=side,
                 unrealized_pnl=float(item.get("unrealized_pl", 0.0)),
                 unrealized_pnl_pct=float(item.get("unrealized_plpc", 0.0)),
             )

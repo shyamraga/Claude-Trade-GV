@@ -244,5 +244,347 @@
     "seen": 1794279165.4858553,
     "ast_hash": "6955d4e410b8caa3480196b58ef27daa",
     "semantic_hash": "6955d4e410b8caa3480196b58ef27daa"
+  },
+  "dashboard/app.js": {
+    "mtime": 1794281753.6063378,
+    "seen": 1794281870.736711,
+    "ast_hash": "ae805d01e19f052664940396491fa556",
+    "semantic_hash": ""
+  },
+  "src/ai/__init__.py": {
+    "mtime": 1794279760.830653,
+    "seen": 1794281870.736711,
+    "ast_hash": "0d4495a58cb5d529655181d2fa1e76d1",
+    "semantic_hash": ""
+  },
+  "src/ai/claude_analyzer.py": {
+    "mtime": 1794280007.7946227,
+    "seen": 1794281870.736711,
+    "ast_hash": "7faaf6b97676c03ce63936d657d165c0",
+    "semantic_hash": ""
+  },
+  "src/ai/integration.py": {
+    "mtime": 1794280061.547685,
+    "seen": 1794281870.736711,
+    "ast_hash": "2b8f3432fc62f4170996a2295c65b91e",
+    "semantic_hash": ""
+  },
+  "src/ai/models.py": {
+    "mtime": 1794279873.15683,
+    "seen": 1794281870.736711,
+    "ast_hash": "e4a64ab7ebc5ace424498767a8c33817",
+    "semantic_hash": ""
+  },
+  "src/ai/news_client.py": {
+    "mtime": 1794279861.038415,
+    "seen": 1794281870.736711,
+    "ast_hash": "f8a43b124cb1a5d965bdc74fc3717d36",
+    "semantic_hash": ""
+  },
+  "src/ai/sentiment_scorer.py": {
+    "mtime": 1794280048.8855019,
+    "seen": 1794281870.736711,
+    "ast_hash": "a54fb41156ac96779fe1194c6388e535",
+    "semantic_hash": ""
+  },
+  "src/api/__init__.py": {
+    "mtime": 1794281369.466799,
+    "seen": 1794281870.736711,
+    "ast_hash": "504f607eac1d53c7c03490fa81c1bd83",
+    "semantic_hash": ""
+  },
+  "src/api/server.py": {
+    "mtime": 1794281549.1190436,
+    "seen": 1794281870.736711,
+    "ast_hash": "3a6069c7000b8317c4cbce5d7786cd14",
+    "semantic_hash": ""
+  },
+  "src/execution/__init__.py": {
+    "mtime": 1794281169.514735,
+    "seen": 1794281870.736711,
+    "ast_hash": "74026d31dbbe8570b5807a58ab88bfc9",
+    "semantic_hash": ""
+  },
+  "src/execution/alpaca_broker.py": {
+    "mtime": 1794281218.0010724,
+    "seen": 1794281870.736711,
+    "ast_hash": "628f1c3e5dca8529bc7dbf73ee897540",
+    "semantic_hash": ""
+  },
+  "src/execution/broker_base.py": {
+    "mtime": 1794281187.6834707,
+    "seen": 1794281870.736711,
+    "ast_hash": "60046372d59babfcbb44a4810144bfcf",
+    "semantic_hash": ""
+  },
+  "src/execution/engine.py": {
+    "mtime": 1794281235.406786,
+    "seen": 1794281870.736711,
+    "ast_hash": "7c56e96a51a936619f9bd22c2263e7c5",
+    "semantic_hash": ""
+  },
+  "src/execution/models.py": {
+    "mtime": 1794281180.5542111,
+    "seen": 1794281870.736711,
+    "ast_hash": "d514e68d301ac8ea32b15d5d18ca4b2e",
+    "semantic_hash": ""
+  },
+  "src/execution/virtual_broker.py": {
+    "mtime": 1794281202.9026794,
+    "seen": 1794281870.736711,
+    "ast_hash": "cb94be9a1523aaf078d44e9aa39d65cd",
+    "semantic_hash": ""
+  },
+  "src/risk/__init__.py": {
+    "mtime": 1794281083.4643288,
+    "seen": 1794281870.736711,
+    "ast_hash": "93659727f7ce59ed9b166d6f386eee50",
+    "semantic_hash": ""
+  },
+  "src/risk/circuit_breaker.py": {
+    "mtime": 1794281107.0083768,
+    "seen": 1794281870.736711,
+    "ast_hash": "c3f9f6b7a6260b1580d3985e38ce3653",
+    "semantic_hash": ""
+  },
+  "src/risk/models.py": {
+    "mtime": 1794281093.0462916,
+    "seen": 1794281870.736711,
+    "ast_hash": "95194f7f5a1823179630d88b47193548",
+    "semantic_hash": ""
+  },
+  "src/risk/post_mortem.py": {
+    "mtime": 1794281124.5273402,
+    "seen": 1794281870.736711,
+    "ast_hash": "cf003f8d91ab554c8a51060f5f29322b",
+    "semantic_hash": ""
+  },
+  "tests/test_api_server.py": {
+    "mtime": 1794281771.3832943,
+    "seen": 1794281870.736711,
+    "ast_hash": "715bdb9bb3bcd460356221cdcf53bbb7",
+    "semantic_hash": ""
+  },
+  "tests/test_execution.py": {
+    "mtime": 1794281257.6635787,
+    "seen": 1794281870.736711,
+    "ast_hash": "f94da93e89125bf398a3258977f385f4",
+    "semantic_hash": ""
+  },
+  "tests/test_news_client.py": {
+    "mtime": 1794279842.0669734,
+    "seen": 1794281870.736711,
+    "ast_hash": "240e15f641ea534cd436bd68740c14e9",
+    "semantic_hash": ""
+  },
+  "tests/test_risk.py": {
+    "mtime": 1794281147.5004597,
+    "seen": 1794281870.736711,
+    "ast_hash": "d2698763b03e1d3dbf3f38b6ccfb1045",
+    "semantic_hash": ""
+  },
+  "tests/test_sentiment_analysis.py": {
+    "mtime": 1794280217.1628509,
+    "seen": 1794281870.736711,
+    "ast_hash": "62e5b243a2597a4f2ab35aa3d13fa4b5",
+    "semantic_hash": ""
+  },
+  ".claude/skills/trader-alerts/SKILL.md": {
+    "mtime": 1794242041.4361312,
+    "seen": 1794281870.736711,
+    "ast_hash": "8ef94de99c160659367530af86f7351c",
+    "semantic_hash": ""
+  },
+  ".claude/skills/trader-analyst/SKILL.md": {
+    "mtime": 1794242041.4381695,
+    "seen": 1794281870.736711,
+    "ast_hash": "cfedb3dcfe65a1ec23e0d4e7e2b41133",
+    "semantic_hash": ""
+  },
+  ".claude/skills/trader-broker/SKILL.md": {
+    "mtime": 1794242041.439676,
+    "seen": 1794281870.736711,
+    "ast_hash": "4f09e3d6c3642c947ea449dfedfdc746",
+    "semantic_hash": ""
+  },
+  ".claude/skills/trader-budget/SKILL.md": {
+    "mtime": 1794242041.4427478,
+    "seen": 1794281870.736711,
+    "ast_hash": "93100843b3fd373f2d870993ad0df285",
+    "semantic_hash": ""
+  },
+  ".claude/skills/trader-entry/SKILL.md": {
+    "mtime": 1794242041.4464512,
+    "seen": 1794281870.736711,
+    "ast_hash": "dea86c37bb63647c50069d3dd99fedff",
+    "semantic_hash": ""
+  },
+  ".claude/skills/trader-exit/SKILL.md": {
+    "mtime": 1794242041.4495173,
+    "seen": 1794281870.736711,
+    "ast_hash": "8c7a903d2f00125150d53799f66686dd",
+    "semantic_hash": ""
+  },
+  ".claude/skills/trader-news/SKILL.md": {
+    "mtime": 1794242041.4527895,
+    "seen": 1794281870.736711,
+    "ast_hash": "8de82c8aaf5fe7a4ba7b61eba4585803",
+    "semantic_hash": ""
+  },
+  ".claude/skills/trader-pelosi/SKILL.md": {
+    "mtime": 1794242041.4543052,
+    "seen": 1794281870.736711,
+    "ast_hash": "5a2b59d34bbefb9e9a7425f0a21d342b",
+    "semantic_hash": ""
+  },
+  ".claude/skills/trader-risk/SKILL.md": {
+    "mtime": 1794242041.45699,
+    "seen": 1794281870.736711,
+    "ast_hash": "fb0e55253e6a9ab99b4394880eaaa61c",
+    "semantic_hash": ""
+  },
+  ".claude/skills/trader-scanner/SKILL.md": {
+    "mtime": 1794242041.458496,
+    "seen": 1794281870.736711,
+    "ast_hash": "c247c9092a3ad6d7123621e4b8bc846c",
+    "semantic_hash": ""
+  },
+  ".claude/skills/trader-timemachine/SKILL.md": {
+    "mtime": 1794242041.4624455,
+    "seen": 1794281870.736711,
+    "ast_hash": "6ae03d66d9d3861db387bcf4de62a98c",
+    "semantic_hash": ""
+  },
+  ".planning/PROJECT.md": {
+    "mtime": 1794247812.414368,
+    "seen": 1794281870.736711,
+    "ast_hash": "d3791a097b91b49534220a60ef3dfbe3",
+    "semantic_hash": ""
+  },
+  ".planning/REQUIREMENTS.md": {
+    "mtime": 1794247825.8156273,
+    "seen": 1794281870.736711,
+    "ast_hash": "8af2d46565c86bdfb91b7ac2a43bf8f3",
+    "semantic_hash": ""
+  },
+  ".planning/ROADMAP.md": {
+    "mtime": 1794247842.0529637,
+    "seen": 1794281870.736711,
+    "ast_hash": "d78a0d954b957825276d7e7c00e466ac",
+    "semantic_hash": ""
+  },
+  ".planning/STATE.md": {
+    "mtime": 1794281832.8889956,
+    "seen": 1794281870.736711,
+    "ast_hash": "96b01a47f8155f927350eecc21899cb2",
+    "semantic_hash": ""
+  },
+  ".planning/phases/01-market-data-ingestion-storage/01-01-PLAN.md": {
+    "mtime": 1794248412.5243216,
+    "seen": 1794281870.736711,
+    "ast_hash": "53a4ab43ff634f707fb2bba66e6d090c",
+    "semantic_hash": ""
+  },
+  ".planning/phases/01-market-data-ingestion-storage/01-02-PLAN.md": {
+    "mtime": 1794248428.36888,
+    "seen": 1794281870.736711,
+    "ast_hash": "0fee1f78d7fb61c153abaf44feb76c5e",
+    "semantic_hash": ""
+  },
+  ".planning/phases/01-market-data-ingestion-storage/01-CONTEXT.md": {
+    "mtime": 1794248395.9145415,
+    "seen": 1794281870.736711,
+    "ast_hash": "b2f12af9681d8395885c6e0946ed7e6e",
+    "semantic_hash": ""
+  },
+  ".planning/phases/01-market-data-ingestion-storage/01-SUMMARY.md": {
+    "mtime": 1794248916.7389092,
+    "seen": 1794281870.736711,
+    "ast_hash": "a63036029a135de17f7e31eaab939919",
+    "semantic_hash": ""
+  },
+  ".planning/phases/01-market-data-ingestion-storage/01-VERIFICATION.md": {
+    "mtime": 1794248924.4444163,
+    "seen": 1794281870.736711,
+    "ast_hash": "27041927c967f574b286ac6a25070c23",
+    "semantic_hash": ""
+  },
+  ".planning/phases/02-technical-indicators-strategy-engine/02-01-PLAN.md": {
+    "mtime": 1794249642.5536642,
+    "seen": 1794281870.736711,
+    "ast_hash": "315ebab16c694645a5559c2fa275c414",
+    "semantic_hash": ""
+  },
+  ".planning/phases/02-technical-indicators-strategy-engine/02-02-PLAN.md": {
+    "mtime": 1794249661.7483366,
+    "seen": 1794281870.736711,
+    "ast_hash": "d36f1927a56e85030edf760f755aa5af",
+    "semantic_hash": ""
+  },
+  ".planning/phases/02-technical-indicators-strategy-engine/02-CONTEXT.md": {
+    "mtime": 1794249627.6096804,
+    "seen": 1794281870.736711,
+    "ast_hash": "ec2ec20b487cbc356de6d0240ab255cb",
+    "semantic_hash": ""
+  },
+  ".planning/phases/03-ai-sentiment-news-analysis/03-01-PLAN.md": {
+    "mtime": 1794252585.0398214,
+    "seen": 1794281870.736711,
+    "ast_hash": "cfd6c2ae117dce89614bf6af2ac9b7a7",
+    "semantic_hash": ""
+  },
+  ".planning/phases/03-ai-sentiment-news-analysis/03-02-PLAN.md": {
+    "mtime": 1794252625.0028763,
+    "seen": 1794281870.736711,
+    "ast_hash": "bf9bc78381cab4537151cd670b933a40",
+    "semantic_hash": ""
+  },
+  ".planning/phases/03-ai-sentiment-news-analysis/03-CONTEXT.md": {
+    "mtime": 1794252551.2110667,
+    "seen": 1794281870.736711,
+    "ast_hash": "2b333fb00d9866adae43c5880ba54d06",
+    "semantic_hash": ""
+  },
+  ".planning/phases/04-risk-management-dual-execution/04-01-PLAN.md": {
+    "mtime": 1794281058.386645,
+    "seen": 1794281870.736711,
+    "ast_hash": "5ae3e5d2ec769ca7f389d916513b95f5",
+    "semantic_hash": ""
+  },
+  ".planning/phases/04-risk-management-dual-execution/04-02-PLAN.md": {
+    "mtime": 1794281072.6162572,
+    "seen": 1794281870.736711,
+    "ast_hash": "f2ed3ef1e3503477b479807cd35ff80a",
+    "semantic_hash": ""
+  },
+  ".planning/phases/05-real-time-dashboard-ui/05-01-PLAN.md": {
+    "mtime": 1794281347.418299,
+    "seen": 1794281870.736711,
+    "ast_hash": "5415e6984d60a28f1b915cc919de7968",
+    "semantic_hash": ""
+  },
+  ".planning/phases/05-real-time-dashboard-ui/05-02-PLAN.md": {
+    "mtime": 1794281357.008439,
+    "seen": 1794281870.736711,
+    "ast_hash": "46bb094f95408bc6737cf1eb93494bb0",
+    "semantic_hash": ""
+  },
+  ".planning/phases/05-real-time-dashboard-ui/05-SUMMARY.md": {
+    "mtime": 1794281814.307122,
+    "seen": 1794281870.736711,
+    "ast_hash": "6b7d143ad472e4ee717aa24bf8a9aab5",
+    "semantic_hash": ""
+  },
+  "CLAUDE.md": {
+    "mtime": 1794241653.0367534,
+    "seen": 1794281870.736711,
+    "ast_hash": "5ef176a0fea5bf6eae755c0d15d28124",
+    "semantic_hash": ""
+  },
+  "dashboard/index.html": {
+    "mtime": 1794281630.8194568,
+    "seen": 1794281870.736711,
+    "ast_hash": "2230578a9b9f4ecad6a528d4ef557079",
+    "semantic_hash": ""
   }
 }

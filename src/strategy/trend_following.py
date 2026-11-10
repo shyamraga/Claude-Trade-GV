@@ -59,7 +59,7 @@ class TrendFollowingStrategy(Strategy):
         atr_values = IndicatorCalculator.atr(bars, self.atr_period)
 
         signals: List[Signal] = []
-        position_open = False
+        position_open: Optional[str] = None  # None, "LONG", or "SHORT"
 
         for i in range(self.slow_ema_period, len(bars)):
             bar = bars[i]
@@ -75,18 +75,21 @@ class TrendFollowingStrategy(Strategy):
             if ema_f is None or ema_s is None or rsi is None:
                 continue
 
-            # Check all trend factors
+            # Check all trend factors for Long
             trend_aligned = ema_f > ema_s  # EMA 20 > EMA 50
             momentum_positive = macd_line is not None and macd_signal is not None and macd_line > macd_signal
             rsi_healthy = self.rsi_lower <= rsi <= self.rsi_upper  # RSI in sweet spot
 
-            # BUY: All three factors align
-            if not position_open and trend_aligned and momentum_positive and rsi_healthy:
-                # Check if this is a fresh entry (was not aligned previous bar)
-                prev_ema_f = ema_fast[i - 1] if i > 0 else None
-                prev_ema_s = ema_slow[i - 1] if i > 0 else None
-                prev_rsi = rsi_values[i - 1] if i > 0 else None
+            # Check all trend factors for Short
+            downtrend_aligned = ema_f < ema_s  # EMA 20 < EMA 50
+            momentum_negative = macd_line is not None and macd_signal is not None and macd_line < macd_signal
+            rsi_downtrend_healthy = (100.0 - self.rsi_upper) <= rsi <= (100.0 - self.rsi_lower)  # RSI 30-50
 
+            prev_ema_f = ema_fast[i - 1] if i > 0 else None
+            prev_ema_s = ema_slow[i - 1] if i > 0 else None
+
+            # BUY: All three factors align for uptrend
+            if position_open is None and trend_aligned and momentum_positive and rsi_healthy:
                 was_trending = prev_ema_f is not None and prev_ema_s is not None and prev_ema_f > prev_ema_s
 
                 if not was_trending:  # Fresh signal, not continuation
@@ -96,7 +99,7 @@ class TrendFollowingStrategy(Strategy):
                     ema_separation = (ema_f - ema_s) / ema_s
                     rsi_strength = (rsi - self.rsi_lower) / (self.rsi_upper - self.rsi_lower)
                     confidence = self._calculate_confidence(0.5, ema_separation * 5 + 0.3, rsi_strength * 0.2)
-                    confidence = min(confidence, 0.90)
+                    confidence = min(confidence, 0.95)
 
                     signals.append(
                         Signal(
@@ -118,10 +121,45 @@ class TrendFollowingStrategy(Strategy):
                             stop_loss=round(stop_loss, 2),
                         )
                     )
-                    position_open = True
+                    position_open = "LONG"
 
-            # EXIT: Trend breaks or RSI becomes overbought
-            elif position_open:
+            # SELL (Short Entry): All three factors align for downtrend
+            elif position_open is None and downtrend_aligned and momentum_negative and rsi_downtrend_healthy:
+                was_downtrending = prev_ema_f is not None and prev_ema_s is not None and prev_ema_f < prev_ema_s
+
+                if not was_downtrending:  # Fresh signal, not continuation
+                    stop_loss = bar.close + (atr * self.atr_multiplier) if atr else bar.close * 1.03
+
+                    # Confidence based on factor strength
+                    ema_separation = (ema_s - ema_f) / ema_s
+                    rsi_strength = ((100.0 - self.rsi_lower) - rsi) / (self.rsi_upper - self.rsi_lower)
+                    confidence = self._calculate_confidence(0.5, ema_separation * 5 + 0.3, rsi_strength * 0.2)
+                    confidence = min(confidence, 0.95)
+
+                    signals.append(
+                        Signal(
+                            symbol=bar.symbol,
+                            action=SignalAction.SELL,
+                            timestamp=bar.timestamp,
+                            price=bar.close,
+                            confidence=round(confidence, 3),
+                            strategy_name=self.name,
+                            indicators={
+                                "ema_fast": ema_f,
+                                "ema_slow": ema_s,
+                                "macd": macd_line,
+                                "macd_signal": macd_signal,
+                                "rsi": rsi,
+                                "atr": atr,
+                            },
+                            reason=f"Bearish trend following: EMA{self.fast_ema_period} ({ema_f:.2f}) < EMA{self.slow_ema_period} ({ema_s:.2f}), MACD negative, RSI {rsi:.1f} in healthy downtrend range",
+                            stop_loss=round(stop_loss, 2),
+                        )
+                    )
+                    position_open = "SHORT"
+
+            # EXIT LONG: Trend breaks or RSI becomes overbought
+            elif position_open == "LONG":
                 # Exit if EMA alignment breaks
                 if ema_f < ema_s:
                     signals.append(
@@ -136,7 +174,7 @@ class TrendFollowingStrategy(Strategy):
                             reason=f"Trend reversal: EMA{self.fast_ema_period} ({ema_f:.2f}) crossed below EMA{self.slow_ema_period} ({ema_s:.2f})",
                         )
                     )
-                    position_open = False
+                    position_open = None
                 # Exit if RSI goes overbought
                 elif rsi > self.rsi_upper:
                     signals.append(
@@ -151,6 +189,37 @@ class TrendFollowingStrategy(Strategy):
                             reason=f"Overbought exit: RSI ({rsi:.1f}) exceeded upper threshold ({self.rsi_upper})",
                         )
                     )
-                    position_open = False
+                    position_open = None
+
+            # EXIT SHORT: Trend breaks or RSI becomes oversold
+            elif position_open == "SHORT":
+                if ema_f > ema_s:
+                    signals.append(
+                        Signal(
+                            symbol=bar.symbol,
+                            action=SignalAction.EXIT,
+                            timestamp=bar.timestamp,
+                            price=bar.close,
+                            confidence=0.85,
+                            strategy_name=self.name,
+                            indicators={"ema_fast": ema_f, "ema_slow": ema_s},
+                            reason=f"Trend reversal: EMA{self.fast_ema_period} ({ema_f:.2f}) crossed above EMA{self.slow_ema_period} ({ema_s:.2f})",
+                        )
+                    )
+                    position_open = None
+                elif rsi < (100.0 - self.rsi_upper):
+                    signals.append(
+                        Signal(
+                            symbol=bar.symbol,
+                            action=SignalAction.EXIT,
+                            timestamp=bar.timestamp,
+                            price=bar.close,
+                            confidence=0.80,
+                            strategy_name=self.name,
+                            indicators={"rsi": rsi},
+                            reason=f"Oversold cover exit: RSI ({rsi:.1f}) reached lower threshold ({100.0 - self.rsi_upper:.1f})",
+                        )
+                    )
+                    position_open = None
 
         return signals

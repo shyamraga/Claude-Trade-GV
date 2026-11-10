@@ -47,23 +47,19 @@ class OpeningRangeBreakoutStrategy(Strategy):
         atr_values = IndicatorCalculator.atr(bars, period=14)
 
         signals: List[Signal] = []
-        position_open = False
+        position_open: Optional[str] = None  # None, "LONG", or "SHORT"
 
         for i in range(self.opening_bars, len(bars)):
             bar = bars[i]
             prev_bar = bars[i - 1]
 
-            # Calculate if we're in the opening range (first 15-30 mins typically)
-            # Once we break out, we stay "broken out" until we exit
+            volume_ratio = bar.volume / avg_opening_volume if avg_opening_volume > 0 else 1.0
 
             # BUY: Break above opening range high with volume confirmation
-            if not position_open and bar.close > opening_high and bar.volume >= avg_opening_volume * self.volume_multiplier:
+            if position_open is None and bar.close > opening_high and bar.volume >= avg_opening_volume * self.volume_multiplier:
                 atr = atr_values[i] if i < len(atr_values) else None
                 stop_loss = opening_low  # Stop at opposite side of range
-
-                # Confidence based on volume strength
-                volume_ratio = bar.volume / avg_opening_volume if avg_opening_volume > 0 else 1.0
-                confidence = min(0.6 + (volume_ratio - 1.0) * 0.2, 0.90)
+                confidence = min(0.65 + (volume_ratio - 1.0) * 0.10, 0.95)
 
                 signals.append(
                     Signal(
@@ -84,10 +80,37 @@ class OpeningRangeBreakoutStrategy(Strategy):
                         stop_loss=round(stop_loss, 2),
                     )
                 )
-                position_open = True
+                position_open = "LONG"
 
-            # EXIT/SELL: Break below opening range low (reversal)
-            elif position_open and bar.close < opening_low:
+            # SELL (Short Entry): Break below opening range low with volume confirmation
+            elif position_open is None and bar.close < opening_low and bar.volume >= avg_opening_volume * self.volume_multiplier:
+                atr = atr_values[i] if i < len(atr_values) else None
+                stop_loss = opening_high  # Stop at opposite side of range (above)
+                confidence = min(0.65 + (volume_ratio - 1.0) * 0.10, 0.95)
+
+                signals.append(
+                    Signal(
+                        symbol=bar.symbol,
+                        action=SignalAction.SELL,
+                        timestamp=bar.timestamp,
+                        price=bar.close,
+                        confidence=round(confidence, 3),
+                        strategy_name=self.name,
+                        indicators={
+                            "opening_high": opening_high,
+                            "opening_low": opening_low,
+                            "breakout_volume": bar.volume,
+                            "avg_opening_volume": avg_opening_volume,
+                            "atr": atr,
+                        },
+                        reason=f"ORB breakdown: Price ({bar.close:.2f}) broke below opening range low ({opening_low:.2f}) with {volume_ratio:.1f}x volume",
+                        stop_loss=round(stop_loss, 2),
+                    )
+                )
+                position_open = "SHORT"
+
+            # EXIT LONG: Break below opening range low (reversal)
+            elif position_open == "LONG" and bar.close < opening_low:
                 signals.append(
                     Signal(
                         symbol=bar.symbol,
@@ -103,6 +126,25 @@ class OpeningRangeBreakoutStrategy(Strategy):
                         reason=f"ORB reversal: Price ({bar.close:.2f}) broke below opening range low ({opening_low:.2f})",
                     )
                 )
-                position_open = False
+                position_open = None
+
+            # EXIT SHORT: Break above opening range high (reversal)
+            elif position_open == "SHORT" and bar.close > opening_high:
+                signals.append(
+                    Signal(
+                        symbol=bar.symbol,
+                        action=SignalAction.EXIT,
+                        timestamp=bar.timestamp,
+                        price=bar.close,
+                        confidence=0.85,
+                        strategy_name=self.name,
+                        indicators={
+                            "opening_high": opening_high,
+                            "opening_low": opening_low,
+                        },
+                        reason=f"ORB reversal: Price ({bar.close:.2f}) broke above opening range high ({opening_high:.2f})",
+                    )
+                )
+                position_open = None
 
         return signals

@@ -23,6 +23,23 @@ class DashboardAPIHandler(SimpleHTTPRequestHandler):
     # Class-level shared singletons
     engine: Optional[ExecutionEngine] = None
     market_repo: Optional[MarketDataRepository] = None
+    scanner_logs: list = []
+
+    @classmethod
+    def log_event(cls, message: str, level: str = "INFO", symbol: str = "", action: str = ""):
+        """Record a live bot / scanner event."""
+        import datetime
+        now = datetime.datetime.now().strftime("%H:%M:%S")
+        cls.scanner_logs.append({
+            "time": now,
+            "message": message,
+            "level": level,
+            "symbol": symbol,
+            "action": action
+        })
+        # Keep recent 200 logs
+        if len(cls.scanner_logs) > 200:
+            cls.scanner_logs.pop(0)
 
     @classmethod
     def initialize_services(
@@ -108,11 +125,16 @@ class DashboardAPIHandler(SimpleHTTPRequestHandler):
             positions = [
                 {
                     "symbol": p.symbol,
+                    "side": getattr(p, "side", "LONG"),
                     "quantity": p.quantity,
                     "entry_price": p.entry_price,
                     "current_price": p.current_price,
                     "unrealized_pnl": p.unrealized_pnl,
                     "unrealized_pnl_pct": p.unrealized_pnl_pct,
+                    "opened_at": p.opened_at.isoformat() if hasattr(p, "opened_at") and p.opened_at else None,
+                    "stop_loss": getattr(p, "stop_loss", None),
+                    "take_profit": getattr(p, "take_profit", None),
+                    "strategy": getattr(p, "strategy", "MANUAL"),
                 }
                 for p in engine.broker.get_positions()
             ]
@@ -140,6 +162,10 @@ class DashboardAPIHandler(SimpleHTTPRequestHandler):
             limit = int(query.get("limit", [5])[0])
             pms = [pm.to_dict() for pm in engine.post_mortem_repo.get_recent_post_mortems(limit=limit)]
             self._send_json({"post_mortems": pms})
+
+        elif path == "/api/scanner-logs":
+            limit = int(query.get("limit", [50])[0])
+            self._send_json({"logs": self.scanner_logs[-limit:]})
 
         elif path == "/api/bars":
             symbol = query.get("symbol", ["SPY"])[0].upper()
@@ -196,7 +222,15 @@ class DashboardAPIHandler(SimpleHTTPRequestHandler):
 
         engine = self.engine or ExecutionEngine()
 
-        if path == "/api/circuit-breaker/override":
+        if path == "/api/scanner-logs":
+            msg = payload.get("message", "")
+            level = payload.get("level", "INFO")
+            symbol = payload.get("symbol", "")
+            action = payload.get("action", "")
+            self.log_event(message=msg, level=level, symbol=symbol, action=action)
+            return self._send_json({"success": True})
+
+        elif path == "/api/circuit-breaker/override":
             override = payload.get("override", True)
             engine.circuit_breaker.set_manual_override(override)
             self._send_json({"success": True, "manual_override": engine.circuit_breaker.manual_override})
@@ -219,6 +253,9 @@ class DashboardAPIHandler(SimpleHTTPRequestHandler):
             if not symbol or action not in ("BUY", "SELL", "EXIT"):
                 return self._send_json({"error": "symbol and valid action (BUY/SELL/EXIT) required"}, status=400)
 
+            stop_loss = float(payload["stop_loss"]) if payload.get("stop_loss") is not None else None
+            take_profit = float(payload["take_profit"]) if payload.get("take_profit") is not None else None
+
             # Update market price in virtual broker if in virtual mode
             if isinstance(engine.broker, VirtualBroker):
                 engine.broker.set_market_price(symbol, price)
@@ -229,6 +266,8 @@ class DashboardAPIHandler(SimpleHTTPRequestHandler):
                 price=price,
                 quantity=quantity,
                 strategy_name=strategy,
+                stop_loss=stop_loss,
+                take_profit=take_profit,
             )
 
             if order:
@@ -246,6 +285,7 @@ class DashboardAPIHandler(SimpleHTTPRequestHandler):
 def run_server(port: int = 8000, engine: Optional[ExecutionEngine] = None):
     """Start local dashboard HTTP server."""
     DashboardAPIHandler.initialize_services(engine=engine)
+    HTTPServer.allow_reuse_address = True
     server_address = ("", port)
     httpd = HTTPServer(server_address, DashboardAPIHandler)
     logger.info(f"Dashboard server running at http://localhost:{port}/")

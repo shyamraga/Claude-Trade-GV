@@ -89,21 +89,30 @@ class MACrossoverStrategy(Strategy):
                         )
                     )
 
-                # Death Cross: Fast crosses below Slow -> SELL/EXIT
+                # Death Cross: Fast crosses below Slow -> SELL (Short Entry)
                 elif prev_fast >= prev_slow and curr_fast < curr_slow:
+                    atr = atr_values[i]
+                    stop_loss = bar.close + (atr * self.atr_multiplier) if atr else bar.close * 1.02
+
+                    # Calculate confidence based on EMA separation
+                    ema_separation = (curr_slow - curr_fast) / curr_slow
+                    confidence = min(0.7 + ema_separation * 10, 0.95)
+
                     signals.append(
                         Signal(
                             symbol=bar.symbol,
-                            action=SignalAction.EXIT,
+                            action=SignalAction.SELL,
                             timestamp=bar.timestamp,
                             price=bar.close,
-                            confidence=0.85,
+                            confidence=round(confidence, 3),
                             strategy_name=self.name,
                             indicators={
                                 "fast_ema": curr_fast,
                                 "slow_ema": curr_slow,
+                                "atr": atr,
                             },
                             reason=f"Death cross: EMA{self.fast_period} ({curr_fast:.2f}) crossed below EMA{self.slow_period} ({curr_slow:.2f})",
+                            stop_loss=round(stop_loss, 2),
                         )
                     )
 

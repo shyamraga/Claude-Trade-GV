@@ -82,6 +82,96 @@ class AIMarketIntelligence:
         self._market_context_cache[symbol] = context
         return context
 
+    def _analyze_market_momentum_sentiment(self, symbol: str, bars: list) -> SentimentAnalysis:
+        """Derive algorithmic market intelligence sentiment from multi-bar price and volume momentum."""
+        if not bars or len(bars) < 10:
+            return SentimentAnalysis(
+                symbol=symbol,
+                sentiment="neutral",
+                confidence=0.5,
+                summary="Insufficient bar data for momentum sentiment.",
+            )
+
+        closes = [b.close for b in bars]
+        volumes = [b.volume for b in bars]
+
+        # Calculate short-term vs medium-term return
+        recent_ret = (closes[-1] - closes[-5]) / closes[-5] if len(closes) >= 5 else 0.0
+        medium_ret = (closes[-1] - closes[-15]) / closes[-15] if len(closes) >= 15 else recent_ret
+
+        # Volume trend
+        avg_vol = sum(volumes[-15:]) / len(volumes[-15:]) if len(volumes) >= 15 else 1.0
+        recent_vol = sum(volumes[-3:]) / 3.0 if len(volumes) >= 3 else avg_vol
+        vol_ratio = recent_vol / avg_vol if avg_vol > 0 else 1.0
+
+        if recent_ret > 0.008 and medium_ret > 0.012:
+            sentiment = "bullish"
+            confidence = min(0.65 + (recent_ret * 10) + (vol_ratio * 0.05), 0.92)
+            summary = f"Strong upward price momentum (+{recent_ret*100:.1f}%) with {vol_ratio:.1f}x volume accumulation."
+        elif recent_ret < -0.008 and medium_ret < -0.012:
+            sentiment = "bearish"
+            confidence = min(0.65 + (abs(recent_ret) * 10) + (vol_ratio * 0.05), 0.92)
+            summary = f"Negative price drift ({recent_ret*100:.1f}%) with elevated selling volume."
+        elif recent_ret > 0.003:
+            sentiment = "bullish"
+            confidence = 0.65
+            summary = "Mild bullish momentum with steady accumulation."
+        elif recent_ret < -0.003:
+            sentiment = "bearish"
+            confidence = 0.65
+            summary = "Mild bearish drift with cautious market order flow."
+        else:
+            sentiment = "neutral"
+            confidence = 0.50
+            summary = "Consolidation regime with balanced order book pressure."
+
+        return SentimentAnalysis(
+            symbol=symbol,
+            sentiment=sentiment,
+            confidence=round(confidence, 2),
+            summary=summary,
+        )
+
+    def enrich_signal(
+        self,
+        symbol: str,
+        action: str,
+        confidence: float,
+        bars: Optional[list] = None,
+    ) -> dict:
+        """
+        Primary AI enrichment method used by the trading orchestrator.
+        Combines news sentiment or multi-factor market momentum intelligence
+        to modulate signal confidence up or down.
+        """
+        symbol = symbol.upper()
+        action = action.upper()
+
+        # 1. Try news & LLM sentiment first
+        context = self.get_market_context(symbol)
+        sentiment = context.sentiment
+
+        # 2. Fall back to multi-factor market intelligence if no news API configured
+        if not sentiment and bars:
+            sentiment = self._analyze_market_momentum_sentiment(symbol, bars)
+
+        if not sentiment:
+            return {
+                "modulated_confidence": confidence,
+                "sentiment": "neutral",
+                "sentiment_confidence": 0.5,
+                "summary": "No market intelligence sentiment available",
+            }
+
+        modulated = self.scorer.modulate_signal_confidence(confidence, sentiment, action)
+
+        return {
+            "modulated_confidence": round(min(max(modulated, 0.0), 0.98), 3),
+            "sentiment": sentiment.sentiment,
+            "sentiment_confidence": sentiment.confidence,
+            "summary": sentiment.summary,
+        }
+
     def enrich_signal_confidence(
         self,
         base_confidence: float,

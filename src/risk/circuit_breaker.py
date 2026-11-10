@@ -110,6 +110,9 @@ class CircuitBreaker:
         position_val = price * proposed_shares
         max_allowed_val = self.current_equity * self.config.max_position_pct
 
+        stop_loss = round(price * (1.0 - self.config.stop_loss_pct), 2) if side == "BUY" else round(price * (1.0 + self.config.stop_loss_pct), 2)
+        take_profit = round(price * (1.0 + self.config.take_profit_pct), 2) if side == "BUY" else round(price * (1.0 - self.config.take_profit_pct), 2)
+
         if position_val > max_allowed_val:
             adjusted_shares = int(max_allowed_val / price)
             return RiskCheckResult(
@@ -117,12 +120,9 @@ class CircuitBreaker:
                 reason=f"Position size scaled down from {proposed_shares} to {adjusted_shares} (max 10% allocation)",
                 risk_level="ELEVATED",
                 max_allowed_shares=adjusted_shares,
-                calculated_stop_loss=round(price * (1.0 - self.config.stop_loss_pct), 2),
-                calculated_take_profit=round(price * (1.0 + self.config.take_profit_pct), 2),
+                calculated_stop_loss=stop_loss,
+                calculated_take_profit=take_profit,
             )
-
-        stop_loss = round(price * (1.0 - self.config.stop_loss_pct), 2) if side == "BUY" else round(price * (1.0 + self.config.stop_loss_pct), 2)
-        take_profit = round(price * (1.0 + self.config.take_profit_pct), 2) if side == "BUY" else round(price * (1.0 - self.config.take_profit_pct), 2)
 
         return RiskCheckResult(
             approved=True,

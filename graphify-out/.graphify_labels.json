@@ -1,1 +1,17 @@
-{"0": "Market Scanner & Universe Building", "1": "Entry Signal Analysis", "2": "Time Machine & Historical Backtesting", "3": "Broker & Order Management", "4": "Exit Strategy & Position Closing", "5": "Position Sizing & Risk Allocation", "6": "Trading Alerts & Notifications", "7": "News & Sentiment Analysis", "8": "Risk Management & Circuit Breakers", "9": "Analyst Tools & Fact Analysis", "10": "Congressional Insider Trading (PTR)", "11": "Database & Storage Layer", "12": "Market Data Models & Bar Data", "13": "Strategy Base Classes & Abstractions", "14": "Technical Indicators (numpy)", "15": "Strategy Execution Rationale", "16": "Alpaca Data Client Integration", "17": "Feed Manager & Quote Aggregation", "18": "Data Serialization & Timeframes", "19": "Data Transformation (Dict/Quote)", "20": "Strategy Signal Generation", "21": "Data Module Initialization", "22": "Storage Module Initialization", "23": "Strategy Bar Management", "24": "Test Initialization"}
+{
+  "0": "Market Scanner & Universe Building",
+  "1": "Entry Signal Analysis",
+  "2": "Time Machine & Historical Backtesting",
+  "3": "Broker & Order Management",
+  "4": "Exit Strategy & Position Closing",
+  "5": "Position Sizing & Risk Allocation",
+  "6": "Trading Alerts & Notifications",
+  "8": "Risk Management & Circuit Breakers",
+  "9": "Analyst Tools & Fact Analysis",
+  "10": "Congressional Insider Trading (PTR)",
+  "11": "Database & Storage Layer",
+  "14": "Technical Indicators (numpy)",
+  "21": "Data Module Initialization",
+  "22": "Storage Module Initialization",
+  "24": "Test Initialization"
+}

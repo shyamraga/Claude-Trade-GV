@@ -9,7 +9,7 @@ from typing import Optional
 class RiskConfig:
     """Risk management parameters and thresholds."""
 
-    max_daily_drawdown_pct: float = 0.03  # 3% max portfolio loss per day
+    max_daily_drawdown_pct: float = 0.05  # 5% max portfolio loss per day
     max_position_pct: float = 0.10  # 10% max allocation per position
     max_portfolio_risk_pct: float = 0.01  # 1% risk per trade
     stop_loss_pct: float = 0.02  # 2% standard stop loss
@@ -50,8 +50,8 @@ class TradeRecord:
     def to_dict(self) -> dict:
         """Serialize to dictionary."""
         d = asdict(self)
-        d["entry_time"] = self.entry_time.isoformat()
-        d["exit_time"] = self.exit_time.isoformat()
+        d["entry_time"] = self.entry_time.isoformat() if hasattr(self.entry_time, "isoformat") else str(self.entry_time)
+        d["exit_time"] = self.exit_time.isoformat() if hasattr(self.exit_time, "isoformat") else str(self.exit_time)
         return d
 
     @classmethod

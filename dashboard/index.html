@@ -44,6 +44,15 @@
     </div>
 
     <div class="nav-right">
+      <div class="nav-tab-buttons" id="mainTabNavigation">
+        <button class="nav-tab-btn active" data-tab="tabOverview" id="btnTabOverview">
+          <span>📊 Overview & Charts</span>
+        </button>
+        <button class="nav-tab-btn" data-tab="tabLiveTrade" id="btnTabLiveTrade">
+          <span class="live-dot-pulse"></span>
+          <span>⚡ Live Trade View</span>
+        </button>
+      </div>
       <div class="mode-switch-wrapper">
         <span class="mode-switch-label">MODE:</span>
         <div class="segmented-control" id="modeSelector">
@@ -61,8 +70,10 @@
 
   <!-- MAIN CONTAINER -->
   <main class="dashboard-grid">
-    <!-- ROW 1: TOP STATS & CIRCUIT BREAKER BANNER -->
-    <section class="stats-row">
+    <!-- TAB 1: OVERVIEW & CHARTS -->
+    <div id="tabOverviewContent" class="tab-pane active">
+      <!-- ROW 1: TOP STATS & CIRCUIT BREAKER BANNER -->
+      <section class="stats-row">
       <!-- Card 1: Equity & Return -->
       <div class="stat-card">
         <div class="stat-header">
@@ -116,7 +127,7 @@
             </div>
             <div class="flex-between mt-1">
               <span class="micro-text mono" id="currentDrawdownText">0.00%</span>
-              <span class="micro-text text-muted">Limit: 3.00%</span>
+              <span class="micro-text text-muted">Limit: 5.00%</span>
             </div>
           </div>
         </div>
@@ -157,11 +168,29 @@
           <div class="symbol-control-group">
             <div class="symbol-select-wrap">
               <select id="symbolSelect" class="styled-select">
-                <option value="SPY">SPY (S&P 500 ETF)</option>
-                <option value="AAPL">AAPL (Apple Inc.)</option>
-                <option value="MSFT">MSFT (Microsoft)</option>
-                <option value="NVDA">NVDA (NVIDIA)</option>
-                <option value="TSLA">TSLA (Tesla Inc.)</option>
+                <optgroup label="Crypto">
+                  <option value="BTC-USD">BTC-USD (Bitcoin)</option>
+                  <option value="ETH-USD">ETH-USD (Ethereum)</option>
+                  <option value="SOL-USD">SOL-USD (Solana)</option>
+                  <option value="AVAX-USD">AVAX-USD (Avalanche)</option>
+                  <option value="DOGE-USD">DOGE-USD (Dogecoin)</option>
+                </optgroup>
+                <optgroup label="Equities">
+                  <option value="SPY" selected>SPY (S&P 500 ETF)</option>
+                  <option value="QQQ">QQQ (Nasdaq 100 ETF)</option>
+                  <option value="AAPL">AAPL (Apple Inc.)</option>
+                  <option value="MSFT">MSFT (Microsoft)</option>
+                  <option value="NVDA">NVDA (NVIDIA)</option>
+                  <option value="TSLA">TSLA (Tesla Inc.)</option>
+                  <option value="AMZN">AMZN (Amazon)</option>
+                  <option value="GOOGL">GOOGL (Alphabet)</option>
+                  <option value="META">META (Meta Platforms)</option>
+                  <option value="NFLX">NFLX (Netflix)</option>
+                  <option value="AMD">AMD (Advanced Micro Devices)</option>
+                  <option value="JPM">JPM (JPMorgan Chase)</option>
+                  <option value="COIN">COIN (Coinbase)</option>
+                  <option value="MSTR">MSTR (MicroStrategy)</option>
+                </optgroup>
               </select>
             </div>
             <div class="ohlc-summary mono" id="ohlcSummary">
@@ -288,6 +317,8 @@
               <tr>
                 <th>SYMBOL</th>
                 <th>SIDE</th>
+                <th>OPENED AT</th>
+                <th>TARGET EXIT (SL / TP)</th>
                 <th class="text-right">SHARES</th>
                 <th class="text-right">ENTRY</th>
                 <th class="text-right">CURRENT</th>
@@ -298,7 +329,7 @@
             </thead>
             <tbody id="positionsTableBody">
               <tr>
-                <td colspan="8" class="text-center text-muted py-6">No open positions. Ready to trade.</td>
+                <td colspan="10" class="text-center text-muted py-6">No open positions. Ready to trade.</td>
               </tr>
             </tbody>
           </table>
@@ -344,6 +375,101 @@
         </div>
       </div>
     </section>
+    </div><!-- END TAB 1 -->
+
+    <!-- TAB 2: LIVE TRADE & SCANNER FEED -->
+    <div id="tabLiveTradeContent" class="tab-pane hidden">
+      <!-- LIVE TOP METRICS -->
+      <section class="live-metrics-bar">
+        <div class="live-metric-card">
+          <span class="live-card-lbl">LIVE PORTFOLIO</span>
+          <span class="live-card-val mono" id="livePortfolioVal">$100,000.00</span>
+        </div>
+        <div class="live-metric-card">
+          <span class="live-card-lbl">CASH BALANCE</span>
+          <span class="live-card-val mono" id="liveCashVal">$100,000.00</span>
+        </div>
+        <div class="live-metric-card">
+          <span class="live-card-lbl">UNREALIZED P&L</span>
+          <span class="live-card-val mono" id="liveUnrealizedPnl">$0.00 (+0.00%)</span>
+        </div>
+        <div class="live-metric-card">
+          <span class="live-card-lbl">REALIZED P&L TODAY</span>
+          <span class="live-card-val mono" id="liveRealizedPnl">$0.00</span>
+        </div>
+        <div class="live-metric-card">
+          <span class="live-card-lbl">FILLED POSITIONS</span>
+          <span class="live-card-val mono text-accent" id="livePositionsCount">0 Active</span>
+        </div>
+      </section>
+
+      <!-- LIVE SPLIT WORKSPACE: SCANNER TERMINAL & FILLED POSITIONS -->
+      <section class="live-split-workspace">
+        <!-- LEFT: REAL-TIME SCANNER TERMINAL -->
+        <div class="workspace-card live-terminal-panel">
+          <div class="panel-header">
+            <div class="flex-row items-center gap-2">
+              <span class="live-dot-pulse"></span>
+              <h2 class="panel-title">AUTONOMOUS MARKET SCANNER & SIGNAL FEED</h2>
+            </div>
+            <div class="flex-row items-center gap-2">
+              <button class="btn-terminal-ctrl" id="btnAutoScroll" title="Toggle Auto-Scroll">AUTO-SCROLL: ON</button>
+              <button class="btn-terminal-ctrl" id="btnClearTerminal">CLEAR</button>
+            </div>
+          </div>
+          <div class="terminal-body mono" id="liveTerminalOutput">
+            <div class="terminal-line text-muted">[System] Autonomous scanner listening for market cycles...</div>
+          </div>
+        </div>
+
+        <!-- RIGHT: LIVE FILLED POSITIONS & P&L SUMMARY -->
+        <div class="workspace-card live-positions-panel">
+          <div class="panel-header">
+            <div class="flex-row items-center gap-2">
+              <span class="panel-icon">💼</span>
+              <h2 class="panel-title">FILLED POSITIONS & P&L SUMMARY</h2>
+            </div>
+            <span class="count-badge" id="livePositionsBadge">0 Open</span>
+          </div>
+
+          <div class="table-responsive">
+            <table class="data-table" id="livePositionsTable">
+              <thead>
+                <tr>
+                  <th>SYMBOL</th>
+                  <th>ACTION</th>
+                  <th>OPENED AT</th>
+                  <th>TARGET EXIT (SL / TP)</th>
+                  <th class="text-right">FILLED QTY</th>
+                  <th class="text-right">ENTRY</th>
+                  <th class="text-right">MARKET</th>
+                  <th class="text-right">TOTAL P&L</th>
+                  <th class="text-center">CLOSE</th>
+                </tr>
+              </thead>
+              <tbody id="livePositionsTableBody">
+                <tr>
+                  <td colspan="9" class="text-center text-muted py-6">No active positions yet. Scanner is searching for setups.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <!-- RECENT FILLS LOG -->
+          <div class="panel-header mt-3">
+            <div class="flex-row items-center gap-2">
+              <span class="panel-icon">⚡</span>
+              <h2 class="panel-title">RECENT FILLED ORDERS</h2>
+            </div>
+            <span class="count-badge" id="liveFillsBadge">0 Fills</span>
+          </div>
+
+          <div class="trade-log-stream" id="liveFillsStream">
+            <div class="empty-state-text">No orders filled yet today.</div>
+          </div>
+        </div>
+      </section>
+    </div><!-- END TAB 2 -->
   </main>
 
   <!-- TOAST NOTIFICATIONS -->

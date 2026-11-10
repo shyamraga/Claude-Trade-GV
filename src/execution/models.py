@@ -44,6 +44,9 @@ class Order:
     filled_at: Optional[datetime] = None
     strategy_name: str = "MANUAL"
     rejection_reason: Optional[str] = None
+    stop_loss: Optional[float] = None
+    take_profit: Optional[float] = None
+    exit_reason: Optional[str] = None
 
     def to_dict(self) -> dict:
         """Serialize to dictionary."""
@@ -72,22 +75,45 @@ class Order:
 
 @dataclass
 class Position:
-    """Active open position."""
+    """Active open position supporting both LONG and SHORT sides."""
 
     symbol: str
     quantity: int
     entry_price: float
     current_price: float
+    side: str = "LONG"  # "LONG" or "SHORT"
     unrealized_pnl: float = 0.0
     unrealized_pnl_pct: float = 0.0
     opened_at: datetime = field(default_factory=datetime.now)
+    stop_loss: Optional[float] = None
+    take_profit: Optional[float] = None
+    strategy: str = "MANUAL"
 
     def update_price(self, new_price: float) -> None:
         """Update current price and recalculate unrealized P&L."""
         self.current_price = new_price
-        self.unrealized_pnl = (new_price - self.entry_price) * self.quantity
-        if self.entry_price > 0:
-            self.unrealized_pnl_pct = (new_price - self.entry_price) / self.entry_price
+        if self.side.upper() == "SHORT":
+            self.unrealized_pnl = (self.entry_price - new_price) * self.quantity
+            if self.entry_price > 0:
+                self.unrealized_pnl_pct = (self.entry_price - new_price) / self.entry_price
+        else:
+            self.unrealized_pnl = (new_price - self.entry_price) * self.quantity
+            if self.entry_price > 0:
+                self.unrealized_pnl_pct = (new_price - self.entry_price) / self.entry_price
+
+    def to_dict(self) -> dict:
+        """Serialize position to dictionary."""
+        d = asdict(self)
+        d["opened_at"] = self.opened_at.isoformat() if hasattr(self.opened_at, "isoformat") else str(self.opened_at)
+        return d
+
+    @classmethod
+    def from_dict(cls, data: dict) -> "Position":
+        """Deserialize from dictionary."""
+        d = dict(data)
+        if isinstance(d.get("opened_at"), str):
+            d["opened_at"] = datetime.fromisoformat(d["opened_at"])
+        return cls(**d)
 
 
 @dataclass

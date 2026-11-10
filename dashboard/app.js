@@ -36,6 +36,25 @@ const formatPct = (val) => {
   return `${sign}${(num * 100).toFixed(2)}%`;
 };
 
+const formatTime = (isoString) => {
+  if (!isoString) return '--:--:--';
+  try {
+    const d = new Date(isoString);
+    if (isNaN(d.getTime())) {
+      return isoString.includes('T') ? isoString.split('T')[1].split('.')[0] : isoString;
+    }
+    return d.toTimeString().split(' ')[0];
+  } catch (e) {
+    return isoString;
+  }
+};
+
+const renderTargetExit = (p) => {
+  const sl = p.stop_loss ? `<span class="target-exit-chip sl" title="Stop Loss Trigger">SL: $${Number(p.stop_loss).toFixed(2)}</span>` : '<span class="text-muted" style="font-size:10px;">SL: Auto (2%)</span>';
+  const tp = p.take_profit ? `<span class="target-exit-chip tp" title="Take Profit Target">TP: $${Number(p.take_profit).toFixed(2)}</span>` : '<span class="text-muted" style="font-size:10px;">TP: Auto (4%)</span>';
+  return `<div class="target-exit-wrap">${sl}${tp}</div>`;
+};
+
 // Toast Notifications
 function showToast(message, type = 'info') {
   const container = document.getElementById('toastContainer');
@@ -323,7 +342,7 @@ async function fetchPositionsData() {
     countBadge.textContent = `${state.positions.length} Open`;
 
     if (state.positions.length === 0) {
-      tbody.innerHTML = `<tr><td colspan="8" class="text-center text-muted py-6">No open positions. Ready to trade.</td></tr>`;
+      tbody.innerHTML = `<tr><td colspan="10" class="text-center text-muted py-6">No open positions. Ready to trade.</td></tr>`;
       return;
     }
 
@@ -332,16 +351,21 @@ async function fetchPositionsData() {
         const isProfit = (p.unrealized_pnl || 0) >= 0;
         const pnlClass = isProfit ? 'positive' : 'negative';
         const mktVal = (p.quantity || 0) * (p.current_price || p.entry_price || 0);
+        const isShort = (p.side || '').toUpperCase() === 'SHORT';
+        const sideTagClass = isShort ? 'SELL' : 'BUY';
+        const sideText = isShort ? 'SHORT' : 'LONG';
 
         return `
           <tr>
             <td style="font-weight:700;">${p.symbol}</td>
-            <td><span class="trade-action-tag BUY">LONG</span></td>
-            <td class="text-right">${p.quantity}</td>
-            <td class="text-right">${formatCurrency(p.entry_price)}</td>
-            <td class="text-right">${formatCurrency(p.current_price)}</td>
-            <td class="text-right">${formatCurrency(mktVal)}</td>
-            <td class="text-right pnl-text ${pnlClass}">
+            <td><span class="trade-action-tag ${sideTagClass}">${sideText}</span></td>
+            <td><span class="timestamp-chip">${formatTime(p.opened_at)}</span></td>
+            <td>${renderTargetExit(p)}</td>
+            <td class="text-right mono">${p.quantity}</td>
+            <td class="text-right mono">${formatCurrency(p.entry_price)}</td>
+            <td class="text-right mono">${formatCurrency(p.current_price)}</td>
+            <td class="text-right mono">${formatCurrency(mktVal)}</td>
+            <td class="text-right mono pnl-text ${pnlClass}">
               ${formatCurrency(p.unrealized_pnl)} (${formatPct(p.unrealized_pnl_pct)})
             </td>
             <td class="text-center">
@@ -509,20 +533,26 @@ async function fetchTradesData() {
       .slice(-10)
       .reverse()
       .map((t) => {
-        const isBuy = t.action === 'BUY';
+        const isBuy = (t.side || t.action) === 'BUY';
         const tagClass = isBuy ? 'BUY' : 'SELL';
+        const sideText = isBuy ? 'LONG' : 'SHORT';
         const pnl = t.pnl !== undefined ? t.pnl : 0;
-        const pnlText = pnl !== 0 ? `<span class="mono ${pnl > 0 ? 'text-bullish' : 'text-bearish'}">${formatCurrency(pnl)}</span>` : '';
+        const pnlText = pnl !== 0 ? `<span class="mono ${pnl > 0 ? 'text-bullish' : 'text-bearish'}">${formatCurrency(pnl)}</span>` : '<span class="text-muted">$0.00</span>';
+        const reasonClass = t.reason || 'SIGNAL_EXIT';
+        const reasonLabel = (t.reason || 'EXIT').replace('_', ' ');
+        const exitPrice = t.exit_price || t.entry_price || t.price || 0;
 
         return `
           <div class="trade-item">
             <div class="trade-item-left">
-              <span class="trade-action-tag ${tagClass}">${t.action}</span>
+              <span class="trade-action-tag ${tagClass}">${sideText}</span>
               <strong>${t.symbol}</strong>
-              <span class="text-muted">${t.quantity} @ ${formatCurrency(t.price)}</span>
+              <span class="text-muted">${t.quantity} @ ${formatCurrency(exitPrice)}</span>
+              <span class="trade-reason-chip ${reasonClass}">${reasonLabel}</span>
             </div>
-            <div class="trade-item-right mono">
-              ${pnlText}
+            <div class="trade-item-right mono text-right">
+              <div>${pnlText}</div>
+              <div class="timestamp-chip" title="Opened ➔ Closed">${formatTime(t.entry_time)} ➔ ${formatTime(t.exit_time)}</div>
             </div>
           </div>
         `;
@@ -700,6 +730,219 @@ async function setExecutionMode(mode) {
 }
 
 /* ==========================================================================
+   LIVE TRADE VIEW — TAB SWITCHING, SCANNER LOGS, LIVE METRICS
+   ========================================================================== */
+
+let liveTradeState = {
+  autoScroll: true,
+  lastLogCount: 0,
+  scannerPollInterval: null,
+  activeTab: 'tabOverview',
+};
+
+function switchTab(tabName) {
+  const overviewPane = document.getElementById('tabOverviewContent');
+  const livePane = document.getElementById('tabLiveTradeContent');
+  const btnOverview = document.getElementById('btnTabOverview');
+  const btnLive = document.getElementById('btnTabLiveTrade');
+
+  if (tabName === 'tabOverview') {
+    overviewPane.classList.add('active');
+    overviewPane.classList.remove('hidden');
+    livePane.classList.remove('active');
+    livePane.classList.add('hidden');
+    btnOverview.classList.add('active');
+    btnLive.classList.remove('active');
+  } else {
+    livePane.classList.add('active');
+    livePane.classList.remove('hidden');
+    overviewPane.classList.remove('active');
+    overviewPane.classList.add('hidden');
+    btnLive.classList.add('active');
+    btnOverview.classList.remove('active');
+    fetchScannerLogs();
+    updateLiveMetrics();
+    updateLivePositions();
+  }
+  liveTradeState.activeTab = tabName;
+}
+
+async function fetchScannerLogs() {
+  try {
+    const res = await fetch('/api/scanner-logs?limit=100');
+    if (!res.ok) return;
+    const data = await res.json();
+    const logs = data.logs || [];
+
+    if (logs.length === liveTradeState.lastLogCount) return;
+    liveTradeState.lastLogCount = logs.length;
+
+    const terminal = document.getElementById('liveTerminalOutput');
+    if (!terminal) return;
+
+    terminal.innerHTML = logs.map(log => {
+      let cls = '';
+      const lvl = (log.level || '').toUpperCase();
+      if (lvl === 'CYCLE') cls = 'cycle';
+      else if (lvl === 'FILLED') cls = 'filled';
+      else if (lvl === 'BLOCKED') cls = 'blocked';
+      else if (lvl === 'SIGNAL') cls = 'signal';
+      else if (lvl === 'AI') cls = 'ai';
+
+      return `<div class="terminal-line ${cls}"><span class="term-time">[${log.time}]</span> ${escapeHtml(log.message)}</div>`;
+    }).join('');
+
+    if (liveTradeState.autoScroll) {
+      terminal.scrollTop = terminal.scrollHeight;
+    }
+  } catch (err) {
+    console.error('Failed to fetch scanner logs:', err);
+  }
+}
+
+function escapeHtml(str) {
+  const div = document.createElement('div');
+  div.textContent = str;
+  return div.innerHTML;
+}
+
+async function updateLiveMetrics() {
+  try {
+    const res = await fetch('/api/account');
+    if (!res.ok) return;
+    const acc = await res.json();
+
+    const el = (id, val) => {
+      const node = document.getElementById(id);
+      if (node) node.textContent = val;
+    };
+
+    el('livePortfolioVal', formatCurrency(acc.portfolio_value));
+    el('liveCashVal', formatCurrency(acc.cash));
+
+    const posRes = await fetch('/api/positions');
+    if (!posRes.ok) return;
+    const posData = await posRes.json();
+    const positions = posData.positions || [];
+
+    let totalUnrealizedPnl = 0;
+    positions.forEach(p => { totalUnrealizedPnl += (p.unrealized_pnl || 0); });
+
+    const pnlPct = acc.portfolio_value > 0 ? (totalUnrealizedPnl / acc.portfolio_value) : 0;
+    const pnlEl = document.getElementById('liveUnrealizedPnl');
+    if (pnlEl) {
+      const sign = totalUnrealizedPnl >= 0 ? '+' : '';
+      pnlEl.textContent = `${formatCurrency(totalUnrealizedPnl)} (${sign}${(pnlPct * 100).toFixed(2)}%)`;
+      pnlEl.style.color = totalUnrealizedPnl >= 0 ? '#26A69A' : '#EF5350';
+    }
+
+    let realizedPnl = 0;
+    if (state.trades && state.trades.length > 0) {
+      state.trades.forEach(t => { realizedPnl += (t.pnl || 0); });
+    }
+    const realizedEl = document.getElementById('liveRealizedPnl');
+    if (realizedEl) {
+      realizedEl.textContent = formatCurrency(realizedPnl);
+      realizedEl.style.color = realizedPnl >= 0 ? '#26A69A' : '#EF5350';
+    }
+
+    el('livePositionsCount', `${positions.length} Active`);
+  } catch (err) {
+    console.error('Failed to update live metrics:', err);
+  }
+}
+
+async function updateLivePositions() {
+  try {
+    const posRes = await fetch('/api/positions');
+    if (!posRes.ok) return;
+    const posData = await posRes.json();
+    const positions = posData.positions || [];
+
+    const tbody = document.getElementById('livePositionsTableBody');
+    const badge = document.getElementById('livePositionsBadge');
+    if (badge) badge.textContent = `${positions.length} Open`;
+
+    if (!tbody) return;
+
+    if (positions.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="9" class="text-center text-muted py-6">No active positions yet. Scanner is searching for setups.</td></tr>';
+    } else {
+      tbody.innerHTML = positions.map(p => {
+        const pnl = p.unrealized_pnl || 0;
+        const pnlClass = pnl >= 0 ? 'text-bullish' : 'text-bearish';
+        const isShort = (p.side || '').toUpperCase() === 'SHORT';
+        const sideTagClass = isShort ? 'SELL' : 'BUY';
+        const sideText = isShort ? 'SHORT' : 'LONG';
+        return `
+          <tr>
+            <td><strong>${p.symbol}</strong></td>
+            <td><span class="trade-action-tag ${sideTagClass}">${sideText}</span></td>
+            <td><span class="timestamp-chip">${formatTime(p.opened_at)}</span></td>
+            <td>${renderTargetExit(p)}</td>
+            <td class="text-right mono">${Math.abs(p.quantity)}</td>
+            <td class="text-right mono">${formatCurrency(p.entry_price)}</td>
+            <td class="text-right mono">${formatCurrency(p.current_price)}</td>
+            <td class="text-right mono ${pnlClass}">${formatCurrency(pnl)}</td>
+            <td class="text-center">
+              <button class="btn-close-pos" onclick="exitPosition('${p.symbol}')">CLOSE</button>
+            </td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    const tradesRes = await fetch('/api/trades');
+    if (!tradesRes.ok) return;
+    const tradesData = await tradesRes.json();
+    const trades = tradesData.trades || [];
+
+    const fillsStream = document.getElementById('liveFillsStream');
+    const fillsBadge = document.getElementById('liveFillsBadge');
+    if (fillsBadge) fillsBadge.textContent = `${trades.length} Fills`;
+
+    if (!fillsStream) return;
+
+    if (trades.length === 0) {
+      fillsStream.innerHTML = '<div class="empty-state-text">No orders filled yet today.</div>';
+    } else {
+      fillsStream.innerHTML = trades.slice(-15).reverse().map(t => {
+        const isBuy = (t.side || t.action) === 'BUY';
+        const tagClass = isBuy ? 'BUY' : 'SELL';
+        const sideText = isBuy ? 'LONG' : 'SHORT';
+        const pnl = t.pnl || 0;
+        const pnlText = pnl !== 0 ? `<span class="mono ${pnl > 0 ? 'text-bullish' : 'text-bearish'}">${formatCurrency(pnl)}</span>` : '<span class="text-muted">$0.00</span>';
+        const reasonClass = t.reason || 'SIGNAL_EXIT';
+        const reasonLabel = (t.reason || 'EXIT').replace('_', ' ');
+        const exitPrice = t.exit_price || t.entry_price || t.price || 0;
+        return `
+          <div class="trade-item">
+            <div class="trade-item-left">
+              <span class="trade-action-tag ${tagClass}">${sideText}</span>
+              <strong>${t.symbol}</strong>
+              <span class="text-muted">${t.quantity} @ ${formatCurrency(exitPrice)}</span>
+              <span class="trade-reason-chip ${reasonClass}">${reasonLabel}</span>
+            </div>
+            <div class="trade-item-right mono text-right">
+              <div>${pnlText}</div>
+              <div class="timestamp-chip" title="Opened ➔ Closed">${formatTime(t.entry_time)} ➔ ${formatTime(t.exit_time)}</div>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+  } catch (err) {
+    console.error('Failed to update live positions:', err);
+  }
+}
+
+function refreshLiveTradeView() {
+  fetchScannerLogs();
+  updateLiveMetrics();
+  updateLivePositions();
+}
+
+/* ==========================================================================
    INITIALIZATION & EVENT BINDINGS
    ========================================================================== */
 function refreshAll() {
@@ -709,6 +952,9 @@ function refreshAll() {
   fetchBarsData();
   fetchTradesData();
   fetchPostMortemsData();
+  if (liveTradeState.activeTab === 'tabLiveTrade') {
+    refreshLiveTradeView();
+  }
 }
 
 window.addEventListener('DOMContentLoaded', () => {
@@ -765,6 +1011,34 @@ window.addEventListener('DOMContentLoaded', () => {
   // Initial Data Fetch
   refreshAll();
 
+  // Tab Navigation Bindings
+  document.getElementById('btnTabOverview').addEventListener('click', () => switchTab('tabOverview'));
+  document.getElementById('btnTabLiveTrade').addEventListener('click', () => switchTab('tabLiveTrade'));
+
+  // Terminal Controls
+  const btnAutoScroll = document.getElementById('btnAutoScroll');
+  if (btnAutoScroll) {
+    btnAutoScroll.addEventListener('click', () => {
+      liveTradeState.autoScroll = !liveTradeState.autoScroll;
+      btnAutoScroll.textContent = `AUTO-SCROLL: ${liveTradeState.autoScroll ? 'ON' : 'OFF'}`;
+      btnAutoScroll.style.color = liveTradeState.autoScroll ? '#26A69A' : '#EF5350';
+    });
+  }
+
+  const btnClearTerminal = document.getElementById('btnClearTerminal');
+  if (btnClearTerminal) {
+    btnClearTerminal.addEventListener('click', () => {
+      const terminal = document.getElementById('liveTerminalOutput');
+      if (terminal) terminal.innerHTML = '<div class="terminal-line text-muted">[System] Terminal cleared by user.</div>';
+      liveTradeState.lastLogCount = 0;
+    });
+  }
+
   // Background Poll every 3 seconds
-  state.pollInterval = setInterval(refreshAll, 3000);
+  state.pollInterval = setInterval(() => {
+    refreshAll();
+    if (liveTradeState.activeTab === 'tabLiveTrade') {
+      refreshLiveTradeView();
+    }
+  }, 3000);
 });

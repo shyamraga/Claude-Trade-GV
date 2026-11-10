@@ -62,7 +62,10 @@ class ExecutionEngine:
         price: float,
         quantity: int,
         strategy_name: str = "MANUAL",
+        stop_loss: Optional[float] = None,
+        take_profit: Optional[float] = None,
         bypass_risk: bool = False,
+        exit_reason: str = "SIGNAL_EXIT",
     ) -> Optional[Order]:
         """
         Execute a trading signal through full risk & memory safety checks.
@@ -74,8 +77,12 @@ class ExecutionEngine:
             logger.info(f"Signal action {action} requires no execution.")
             return None
 
+        # Update virtual broker market price if running in virtual mode
+        if isinstance(self.broker, VirtualBroker):
+            self.broker.set_market_price(symbol, price)
+
         # 1. Pre-trade Memory Filter Check (prevent repeating past mistake setups)
-        if not bypass_risk and action == "BUY":
+        if not bypass_risk and action in ("BUY", "SELL"):
             allowed, block_reason = self.post_mortem_repo.check_pre_trade_filter(
                 symbol=symbol, strategy_name=strategy_name
             )
@@ -96,29 +103,52 @@ class ExecutionEngine:
                 return None
 
             quantity = risk_check.max_allowed_shares
+            if stop_loss is None:
+                stop_loss = risk_check.calculated_stop_loss
+            if take_profit is None:
+                take_profit = risk_check.calculated_take_profit
 
-        # 3. Handle EXIT vs BUY order
+        # 3. Handle EXIT vs BUY/SELL order
         if action == "EXIT":
             existing_pos = self.broker.get_position(symbol)
             if not existing_pos:
                 logger.info(f"No open position to exit for {symbol}.")
                 return None
+
+            # To exit a SHORT position, submit BUY (cover); to exit a LONG position, submit SELL
+            exit_side = OrderSide.BUY if existing_pos.side.upper() == "SHORT" else OrderSide.SELL
+            order = Order(
+                order_id=f"ord_{uuid.uuid4().hex[:8]}",
+                symbol=symbol,
+                side=exit_side,
+                order_type=OrderType.MARKET,
+                quantity=existing_pos.quantity,
+                strategy_name=strategy_name,
+                exit_reason=exit_reason,
+            )
+        elif action == "SELL":
+            # Short entry order
             order = Order(
                 order_id=f"ord_{uuid.uuid4().hex[:8]}",
                 symbol=symbol,
                 side=OrderSide.SELL,
                 order_type=OrderType.MARKET,
-                quantity=existing_pos.quantity,
+                quantity=quantity,
                 strategy_name=strategy_name,
+                stop_loss=stop_loss,
+                take_profit=take_profit,
             )
-        else:
+        else:  # BUY
+            # Long entry order
             order = Order(
                 order_id=f"ord_{uuid.uuid4().hex[:8]}",
                 symbol=symbol,
-                side=OrderSide.BUY if action == "BUY" else OrderSide.SELL,
+                side=OrderSide.BUY,
                 order_type=OrderType.MARKET,
                 quantity=quantity,
                 strategy_name=strategy_name,
+                stop_loss=stop_loss,
+                take_profit=take_profit,
             )
 
         # 4. Dispatch Order to Broker
@@ -130,21 +160,94 @@ class ExecutionEngine:
 
         return executed_order
 
+    def check_position_stops(self, symbol: str, current_price: float) -> Optional[Order]:
+        """
+        Check if an active position has crossed its stop-loss or take-profit price.
+        If triggered, automatically execute exit with appropriate reason.
+        """
+        pos = self.broker.get_position(symbol)
+        if not pos or pos.quantity <= 0:
+            return None
+
+        pos.update_price(current_price)
+
+        # LONG position check: stop below entry, take-profit above entry
+        if pos.side.upper() == "LONG":
+            if pos.stop_loss and current_price <= pos.stop_loss:
+                logger.info(f"STOP LOSS TRIGGERED for LONG {symbol}: price ${current_price:.2f} <= SL ${pos.stop_loss:.2f}")
+                return self.execute_signal(
+                    symbol=symbol,
+                    action="EXIT",
+                    price=current_price,
+                    quantity=pos.quantity,
+                    strategy_name=pos.strategy,
+                    bypass_risk=True,
+                    exit_reason="STOP_LOSS",
+                )
+            elif pos.take_profit and current_price >= pos.take_profit:
+                logger.info(f"TAKE PROFIT TRIGGERED for LONG {symbol}: price ${current_price:.2f} >= TP ${pos.take_profit:.2f}")
+                return self.execute_signal(
+                    symbol=symbol,
+                    action="EXIT",
+                    price=current_price,
+                    quantity=pos.quantity,
+                    strategy_name=pos.strategy,
+                    bypass_risk=True,
+                    exit_reason="TAKE_PROFIT",
+                )
+
+        # SHORT position check: stop above entry, take-profit below entry
+        elif pos.side.upper() == "SHORT":
+            if pos.stop_loss and current_price >= pos.stop_loss:
+                logger.info(f"STOP LOSS TRIGGERED for SHORT {symbol}: price ${current_price:.2f} >= SL ${pos.stop_loss:.2f}")
+                return self.execute_signal(
+                    symbol=symbol,
+                    action="EXIT",
+                    price=current_price,
+                    quantity=pos.quantity,
+                    strategy_name=pos.strategy,
+                    bypass_risk=True,
+                    exit_reason="STOP_LOSS",
+                )
+            elif pos.take_profit and current_price <= pos.take_profit:
+                logger.info(f"TAKE PROFIT TRIGGERED for SHORT {symbol}: price ${current_price:.2f} <= TP ${pos.take_profit:.2f}")
+                return self.execute_signal(
+                    symbol=symbol,
+                    action="EXIT",
+                    price=current_price,
+                    quantity=pos.quantity,
+                    strategy_name=pos.strategy,
+                    bypass_risk=True,
+                    exit_reason="TAKE_PROFIT",
+                )
+
+        return None
+
     def _handle_fill(self, order: Order, current_price: float) -> None:
-        """Handle order fill and record completed trades."""
+        """Handle order fill and record completed trades for both long and short."""
         symbol = order.symbol
+        existing_pos = self.broker.get_position(symbol)
 
-        if order.side == OrderSide.BUY:
-            self._entry_records[symbol] = order
-        elif order.side == OrderSide.SELL and symbol in self._entry_records:
+        # Check if this order closed out an entry
+        if symbol in self._entry_records and (existing_pos is None or existing_pos.quantity == 0):
             entry_order = self._entry_records.pop(symbol)
-            pnl = (order.average_fill_price - entry_order.average_fill_price) * order.quantity
-            pnl_pct = (order.average_fill_price - entry_order.average_fill_price) / entry_order.average_fill_price if entry_order.average_fill_price > 0 else 0.0
 
+            if entry_order.side == OrderSide.BUY:
+                # Closed a LONG position: profit when exit > entry
+                pnl = (order.average_fill_price - entry_order.average_fill_price) * order.quantity
+                pnl_pct = (order.average_fill_price - entry_order.average_fill_price) / entry_order.average_fill_price if entry_order.average_fill_price > 0 else 0.0
+                trade_side = "BUY"
+            else:
+                # Covered a SHORT position: profit when exit (buy) < entry (sell)
+                pnl = (entry_order.average_fill_price - order.average_fill_price) * order.quantity
+                pnl_pct = (entry_order.average_fill_price - order.average_fill_price) / entry_order.average_fill_price if entry_order.average_fill_price > 0 else 0.0
+                trade_side = "SELL"
+
+            reason = getattr(order, "exit_reason", None) or "SIGNAL_EXIT"
             trade_record = TradeRecord(
                 trade_id=f"trade_{uuid.uuid4().hex[:8]}",
                 symbol=symbol,
-                side="BUY",
+                side=trade_side,
                 quantity=order.quantity,
                 entry_price=entry_order.average_fill_price,
                 exit_price=order.average_fill_price,
@@ -153,7 +256,7 @@ class ExecutionEngine:
                 entry_time=entry_order.filled_at or datetime.now(),
                 exit_time=order.filled_at or datetime.now(),
                 strategy_name=order.strategy_name,
-                reason="SIGNAL_EXIT",
+                reason=reason,
             )
             self.trade_history.append(trade_record)
             self.circuit_breaker.record_trade(trade_record)
@@ -161,12 +264,15 @@ class ExecutionEngine:
             # 6. Automatic Continuous Learning: Generate Post-Mortem on Loss
             if trade_record.pnl < 0:
                 logger.warning(
-                    f"AUTOMATIC LOSS POST-MORTEM TRIGGERED: -${abs(trade_record.pnl):.2f} on {symbol}"
+                    f"AUTOMATIC LOSS POST-MORTEM TRIGGERED: -${abs(trade_record.pnl):.2f} on {symbol} ({trade_side})"
                 )
                 self.post_mortem_repo.create_post_mortem(
                     trade=trade_record,
-                    root_cause=f"Adverse price movement following {order.strategy_name} entry",
+                    root_cause=f"Adverse price movement following {order.strategy_name} {trade_side} entry",
                     market_condition="Live market conditions deviated from entry hypothesis",
                     preventative_rule=f"Exercise caution with {order.strategy_name} on {symbol}; verify higher-timeframe trend alignment",
-                    tags=[symbol, order.strategy_name, "automated_loss"],
+                    tags=[symbol, order.strategy_name, "automated_loss", trade_side.lower()],
                 )
+        else:
+            # Opening new position (either LONG or SHORT)
+            self._entry_records[symbol] = order

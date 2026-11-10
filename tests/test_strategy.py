@@ -90,6 +90,127 @@ class TestTrendPreview(unittest.TestCase):
         # Should have golden cross signal when fast crosses above slow
         self.assertGreater(len(buy_signals), 0, "MACrossover should generate BUY signals on crossover")
 
+    def test_macrossover_death_cross_short_signal(self):
+        # Create price series where fast EMA crosses below slow EMA (Death Cross)
+        bars = []
+        prices = [95.0, 97.0, 99.0, 102.0, 105.0, 106.0, 104.0, 100.0, 94.0, 88.0, 82.0]
+        for i, price in enumerate(prices):
+            bars.append(
+                Bar(
+                    symbol="TEST",
+                    timestamp=self.base_time + timedelta(minutes=i * 15),
+                    open=price + 0.5,
+                    high=price + 0.5,
+                    low=price - 0.5,
+                    close=price,
+                    volume=1000.0,
+                )
+            )
+
+        strategy = MACrossoverStrategy(fast_period=3, slow_period=5, atr_multiplier=1.5)
+        signals = strategy.generate_signals(bars)
+        sell_signals = [s for s in signals if s.action == SignalAction.SELL]
+        self.assertGreater(len(sell_signals), 0, "MACrossover should generate SELL (Short) signals on death cross")
+        self.assertGreater(sell_signals[0].stop_loss, sell_signals[0].price, "Short stop loss should be above price")
+
+    def test_orb_breakdown_short_signal(self):
+        # Opening range: 3 bars between 98 and 102 with avg volume 1000
+        bars = []
+        prices = [100.0, 101.0, 99.0]
+        for i, p in enumerate(prices):
+            bars.append(
+                Bar(
+                    symbol="TEST",
+                    timestamp=self.base_time + timedelta(minutes=i * 15),
+                    open=p,
+                    high=102.0,
+                    low=98.0,
+                    close=p,
+                    volume=1000.0,
+                )
+            )
+        # Bar 4 breaks down below opening low (98.0) to 95.0 on high volume 2500
+        bars.append(
+            Bar(
+                symbol="TEST",
+                timestamp=self.base_time + timedelta(minutes=3 * 15),
+                open=97.5,
+                high=97.8,
+                low=94.5,
+                close=95.0,
+                volume=2500.0,
+            )
+        )
+        # Bar 5 continuation
+        bars.append(
+            Bar(
+                symbol="TEST",
+                timestamp=self.base_time + timedelta(minutes=4 * 15),
+                open=95.0,
+                high=95.5,
+                low=93.0,
+                close=94.0,
+                volume=1500.0,
+            )
+        )
+        strategy = OpeningRangeBreakoutStrategy(opening_bars=3, volume_multiplier=1.5)
+        signals = strategy.generate_signals(bars)
+        sell_signals = [s for s in signals if s.action == SignalAction.SELL]
+        self.assertEqual(len(sell_signals), 1, "ORB should generate SELL (Short) signal on breakdown below opening low")
+        self.assertEqual(sell_signals[0].stop_loss, 102.0, "Short stop loss should be at opening high")
+
+    def test_rsi_overbought_bearish_reversion_short_signal(self):
+        # Build prices that rally up high (RSI > 70) and then start reversing down (RSI crosses below 70)
+        bars = []
+        prices = [
+            100, 102, 105, 109, 114, 120, 126, 133, 140, 146, 150, 152, 151, 147, 142
+        ]
+        for i, p in enumerate(prices):
+            bars.append(
+                Bar(
+                    symbol="TEST",
+                    timestamp=self.base_time + timedelta(minutes=i * 15),
+                    open=float(p - 1),
+                    high=float(p + 1),
+                    low=float(p - 1),
+                    close=float(p),
+                    volume=1000.0,
+                )
+            )
+        strategy = RSIMeanReversionStrategy(rsi_period=7, overbought_threshold=70.0)
+        signals = strategy.generate_signals(bars)
+        sell_signals = [s for s in signals if s.action == SignalAction.SELL]
+        self.assertGreater(len(sell_signals), 0, "RSI should generate SELL (Short) signal on bearish reversion from overbought")
+        self.assertGreater(sell_signals[0].stop_loss, sell_signals[0].price, "Short stop loss should be above price")
+
+    def test_trend_following_downtrend_short_signal(self):
+        # 60 bars: first 35 bars ranging around 150-155, then sustained downtrend to 120
+        bars = []
+        prices = [150.0 + (i % 3) * 0.5 for i in range(35)]
+        # Add 25 bars in a strong downtrend
+        curr = prices[-1]
+        for i in range(25):
+            curr -= 1.2
+            prices.append(curr)
+
+        for i, p in enumerate(prices):
+            bars.append(
+                Bar(
+                    symbol="TEST",
+                    timestamp=self.base_time + timedelta(minutes=i * 15),
+                    open=p + 0.5,
+                    high=p + 0.8,
+                    low=p - 0.8,
+                    close=p,
+                    volume=1000.0,
+                )
+            )
+        strategy = TrendFollowingStrategy(fast_ema=10, slow_ema=25, rsi_period=14, rsi_lower=50.0, rsi_upper=70.0)
+        signals = strategy.generate_signals(bars)
+        sell_signals = [s for s in signals if s.action == SignalAction.SELL]
+        self.assertGreater(len(sell_signals), 0, "TrendFollowing should generate SELL (Short) signal on downtrend")
+        self.assertGreater(sell_signals[0].stop_loss, sell_signals[0].price, "Short stop loss should be above entry price")
+
 
 class TestStrategyEngine(unittest.TestCase):
     def test_strategy_engine_registration(self):

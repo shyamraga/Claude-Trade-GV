@@ -122,6 +122,9 @@ class SentimentScorer:
             if action == "BUY":
                 # Boost confidence for bullish + buy
                 modulation = 1.0 + (sentiment.confidence * self.BULLISH_BUY_BOOST)
+            elif action == "SELL":
+                # Significantly reduce short sell confidence when bullish (shorting against bull trend)
+                modulation = 1.0 - (sentiment.confidence * self.BEARISH_BUY_DAMPEN)
             elif action == "EXIT":
                 # Slightly reduce exit confidence when bullish
                 modulation = 1.0 - (sentiment.confidence * self.BULLISH_EXIT_DAMPEN)
@@ -132,6 +135,9 @@ class SentimentScorer:
             if action == "BUY":
                 # Significantly reduce buy confidence when bearish
                 modulation = 1.0 - (sentiment.confidence * self.BEARISH_BUY_DAMPEN)
+            elif action == "SELL":
+                # Boost confidence for bearish + short sell (shorting with bear trend)
+                modulation = 1.0 + (sentiment.confidence * self.BULLISH_BUY_BOOST)
             elif action == "EXIT":
                 # Boost exit confidence when bearish
                 modulation = 1.0 + (sentiment.confidence * self.BEARISH_EXIT_BOOST)
