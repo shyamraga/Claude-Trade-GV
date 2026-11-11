@@ -114,7 +114,7 @@ class CircuitBreaker:
         take_profit = round(price * (1.0 + self.config.take_profit_pct), 2) if side == "BUY" else round(price * (1.0 - self.config.take_profit_pct), 2)
 
         if position_val > max_allowed_val:
-            adjusted_shares = int(max_allowed_val / price)
+            adjusted_shares = max(1, int(max_allowed_val / price))
             return RiskCheckResult(
                 approved=True,
                 reason=f"Position size scaled down from {proposed_shares} to {adjusted_shares} (max 10% allocation)",

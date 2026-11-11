@@ -3,6 +3,7 @@
 import shutil
 import tempfile
 import unittest
+from unittest.mock import patch
 from pathlib import Path
 
 from src.execution.models import OrderSide, OrderStatus
@@ -154,10 +155,26 @@ class TestExecutionEngine(unittest.TestCase):
             virtual_broker=self.virtual_broker,
             circuit_breaker=self.circuit_breaker,
             post_mortem_repo=self.post_mortem_repo,
+            trades_file=self.temp_dir / "trades_history.json",
         )
+        self.mh_patcher = patch(
+            "src.risk.market_hours.MarketHoursManager.is_market_open",
+            return_value=(True, "Market is open for testing"),
+        )
+        self.mh_patcher.start()
 
     def tearDown(self):
+        self.mh_patcher.stop()
         shutil.rmtree(self.temp_dir)
+
+    def test_market_hours_guardian_rejects_closed_market(self):
+        """Test that market hours guardian rejects orders when market is closed."""
+        with patch(
+            "src.risk.market_hours.MarketHoursManager.is_market_open",
+            return_value=(False, "US Market is CLOSED for weekend"),
+        ):
+            order = self.engine.execute_signal("AAPL", "BUY", 150.0, 10)
+            self.assertIsNone(order)
 
     def test_execute_buy_signal(self):
         """Test executing a standard BUY signal."""
@@ -208,6 +225,11 @@ class TestExecutionEngine(unittest.TestCase):
         self.assertEqual(recent_pms[0].symbol, "NVDA")
         self.assertEqual(recent_pms[0].loss_amount, 500.0)
         self.assertEqual(recent_pms[0].outcome, "LOSS")
+        # Ensure deep diagnosis is populated rather than generic boilerplate
+        self.assertTrue(len(recent_pms[0].root_cause) > 20)
+        self.assertTrue(len(recent_pms[0].preventative_rule) > 20)
+        self.assertIn("NVDA", recent_pms[0].tags)
+        self.assertIn("ORB", recent_pms[0].tags)
 
     def test_winning_trade_triggers_automatic_post_mortem_debrief(self):
         """Test that closing a trade at a profit also generates an automated debrief and doesn't block future trades."""
@@ -397,6 +419,59 @@ class TestExecutionEngine(unittest.TestCase):
         self.assertEqual(len(remaining_positions), 9)
         new_slots = max(0, max_allowed - len(remaining_positions))
         self.assertEqual(new_slots, 1)
+
+    def test_dynamic_breakeven_stop_advancement(self):
+        """Test that winning trade advances stop to breakeven, preventing a winner turning into a loss."""
+        self.virtual_broker.set_market_price("GOOGL", 100.0)
+        self.engine.execute_signal(
+            symbol="GOOGL",
+            action="BUY",
+            price=100.0,
+            quantity=10,
+            strategy_name="TrendFollowing",
+            stop_loss=95.0,
+            take_profit=110.0,
+        )
+        pos = self.virtual_broker.get_position("GOOGL")
+        self.assertFalse(pos.is_breakeven_set)
+        self.assertEqual(pos.stop_loss, 95.0)
+
+        # 1. Price advances past 50% of target ($106.0 >= $105.0) -> Engages breakeven
+        self.engine.check_position_stops("GOOGL", 106.0)
+        self.assertTrue(pos.is_breakeven_set)
+        self.assertGreaterEqual(pos.stop_loss, 100.20)
+
+        # 2. Price suffers sharp pullback to $100.10 -> Triggers BREAKEVEN_STOP exit with profit
+        exit_order = self.engine.check_position_stops("GOOGL", 100.10)
+        self.assertIsNotNone(exit_order)
+        self.assertEqual(exit_order.status, OrderStatus.FILLED)
+        self.assertEqual(self.engine.trade_history[-1].reason, "BREAKEVEN_STOP")
+        self.assertGreaterEqual(self.engine.trade_history[-1].pnl, 0.0)
+
+    def test_dynamic_trailing_stop_advancement(self):
+        """Test that strong momentum trails stop 1.5% below peak to lock in gains."""
+        self.virtual_broker.set_market_price("MSFT", 300.0)
+        self.engine.execute_signal(
+            symbol="MSFT",
+            action="BUY",
+            price=300.0,
+            quantity=10,
+            strategy_name="ORB",
+            stop_loss=285.0,
+            take_profit=350.0,
+        )
+        pos = self.virtual_broker.get_position("MSFT")
+
+        # 1. MSFT rallies +5% to $315.0 -> Trails stop 1.5% below $315 ($310.27)
+        self.engine.check_position_stops("MSFT", 315.0)
+        self.assertGreaterEqual(pos.stop_loss, 310.0)
+
+        # 2. Pullback hits trailing stop at $309.50
+        exit_order = self.engine.check_position_stops("MSFT", 309.50)
+        self.assertIsNotNone(exit_order)
+        self.assertEqual(exit_order.status, OrderStatus.FILLED)
+        self.assertEqual(self.engine.trade_history[-1].reason, "TRAILING_STOP")
+        self.assertGreater(self.engine.trade_history[-1].pnl, 0.0)
 
 
 if __name__ == "__main__":

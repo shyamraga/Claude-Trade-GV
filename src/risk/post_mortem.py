@@ -148,6 +148,30 @@ class PostMortemRepository:
         json_path.write_text(json.dumps(post_mortem.to_dict(), indent=2), encoding="utf-8")
         md_path.write_text(post_mortem.to_markdown(), encoding="utf-8")
 
+        # Also maintain a cumulative chronological learning log for high-level review
+        try:
+            learnings_log_path = self.memory_dir.parent / "CUMULATIVE_LEARNINGS.md"
+            dur_min = max(1.0, (trade.exit_time - trade.entry_time).total_seconds()) / 60.0
+            log_entry = (
+                f"\n### [{post_mortem.exit_time.strftime('%Y-%m-%d %H:%M:%S')}] "
+                f"{outcome}: {trade.symbol} ({trade.strategy_name} {trade.side})\n"
+                f"- **P&L:** {'+' if trade.pnl >= 0 else ''}${trade.pnl:.2f} ({trade.pnl_pct:.2%})\n"
+                f"- **Duration:** {dur_min:.1f} min\n"
+                f"- **Exit Price / Target:** ${trade.exit_price:.2f} (Reason: {trade.reason or 'SIGNAL_EXIT'})\n"
+                f"- **Root Cause:** {root_cause}\n"
+                f"- **Preventative Rule:** {preventative_rule}\n"
+                f"- **Tags:** {', '.join(tags or [])}\n"
+                f"---\n"
+            )
+            if not learnings_log_path.exists():
+                header = "# Cumulative Continuous Learning Log & Preventative Rules\n\n"
+                learnings_log_path.write_text(header + log_entry, encoding="utf-8")
+            else:
+                with open(learnings_log_path, "a", encoding="utf-8") as f:
+                    f.write(log_entry)
+        except Exception as e:
+            logger.warning(f"Could not append to cumulative learnings log: {e}")
+
         self._cache.append(post_mortem)
         logger.info(f"Post-mortem ({outcome}) created and saved to {json_path.name}")
         return post_mortem
@@ -170,6 +194,23 @@ class PostMortemRepository:
             )
         ]
 
+        # Also check if proposed setup matches recent failure tags across the strategy
+        if not similar_losses and proposed_setup_tags:
+            tag_set = {t.lower() for t in proposed_setup_tags}
+            matching_tag_losses = [
+                pm for pm in self._cache
+                if pm.strategy_name == strategy_name and getattr(pm, "outcome", "LOSS") == "LOSS"
+                and any(t.lower() in tag_set for t in pm.tags if t.lower() not in ("loss", "win", symbol.lower(), strategy_name.lower()))
+            ]
+            if matching_tag_losses:
+                latest_tag_loss = sorted(matching_tag_losses, key=lambda x: x.exit_time, reverse=True)[0]
+                warning_msg = (
+                    f"Pre-trade tag match: {strategy_name} setup has risk pattern '{', '.join(proposed_setup_tags)}' "
+                    f"which failed on {latest_tag_loss.symbol}. Preventative rule: '{latest_tag_loss.preventative_rule}'"
+                )
+                logger.warning(warning_msg)
+                return False, warning_msg
+
         if not similar_losses:
             return True, None
 
@@ -185,4 +226,7 @@ class PostMortemRepository:
 
     def get_recent_post_mortems(self, limit: int = 5) -> List[TradePostMortem]:
         """Get the latest post-mortems."""
+        disk_files = list(self.memory_dir.glob("*.json"))
+        if len(disk_files) != len(self._cache):
+            self._load_all()
         return sorted(self._cache, key=lambda x: x.exit_time, reverse=True)[:limit]

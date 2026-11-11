@@ -19,6 +19,7 @@ class OpeningRangeBreakoutStrategy(Strategy):
         opening_bars: int = 3,
         volume_multiplier: float = 1.5,
         atr_multiplier: float = 2.0,
+        take_profit_multiplier: float = 2.0,
     ):
         super().__init__(
             name="ORB",
@@ -26,11 +27,13 @@ class OpeningRangeBreakoutStrategy(Strategy):
                 "opening_bars": opening_bars,
                 "volume_multiplier": volume_multiplier,
                 "atr_multiplier": atr_multiplier,
+                "take_profit_multiplier": take_profit_multiplier,
             },
         )
         self.opening_bars = opening_bars
         self.volume_multiplier = volume_multiplier
         self.atr_multiplier = atr_multiplier
+        self.take_profit_multiplier = take_profit_multiplier
 
     def generate_signals(self, bars: List[Bar]) -> List[Signal]:
         if len(bars) < self.opening_bars + 2:
@@ -58,7 +61,9 @@ class OpeningRangeBreakoutStrategy(Strategy):
             # BUY: Break above opening range high with volume confirmation
             if position_open is None and bar.close > opening_high and bar.volume >= avg_opening_volume * self.volume_multiplier:
                 atr = atr_values[i] if i < len(atr_values) else None
+                range_size = opening_high - opening_low
                 stop_loss = opening_low  # Stop at opposite side of range
+                take_profit = bar.close + max(range_size * self.take_profit_multiplier, (atr * 2.5) if atr else bar.close * 0.04)
                 confidence = min(0.65 + (volume_ratio - 1.0) * 0.10, 0.95)
 
                 signals.append(
@@ -78,6 +83,7 @@ class OpeningRangeBreakoutStrategy(Strategy):
                         },
                         reason=f"ORB breakout: Price ({bar.close:.2f}) broke above opening range high ({opening_high:.2f}) with {volume_ratio:.1f}x volume",
                         stop_loss=round(stop_loss, 2),
+                        take_profit=round(take_profit, 2),
                     )
                 )
                 position_open = "LONG"
@@ -85,7 +91,9 @@ class OpeningRangeBreakoutStrategy(Strategy):
             # SELL (Short Entry): Break below opening range low with volume confirmation
             elif position_open is None and bar.close < opening_low and bar.volume >= avg_opening_volume * self.volume_multiplier:
                 atr = atr_values[i] if i < len(atr_values) else None
+                range_size = opening_high - opening_low
                 stop_loss = opening_high  # Stop at opposite side of range (above)
+                take_profit = bar.close - max(range_size * self.take_profit_multiplier, (atr * 2.5) if atr else bar.close * 0.04)
                 confidence = min(0.65 + (volume_ratio - 1.0) * 0.10, 0.95)
 
                 signals.append(
@@ -105,6 +113,7 @@ class OpeningRangeBreakoutStrategy(Strategy):
                         },
                         reason=f"ORB breakdown: Price ({bar.close:.2f}) broke below opening range low ({opening_low:.2f}) with {volume_ratio:.1f}x volume",
                         stop_loss=round(stop_loss, 2),
+                        take_profit=round(take_profit, 2),
                     )
                 )
                 position_open = "SHORT"

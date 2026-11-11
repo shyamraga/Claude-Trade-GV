@@ -7,17 +7,21 @@
   <link rel="stylesheet" href="/styles.css">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 </head>
 <body class="oled-theme">
   <!-- TOP HEADER -->
   <header class="top-nav">
     <div class="nav-left">
       <div class="brand">
-        <span class="brand-icon">⚡</span>
+        <div class="brand-icon-wrap">
+          <svg class="brand-svg-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
+          </svg>
+        </div>
         <div class="brand-text">
-          <h1>CLAUDE TRADING</h1>
-          <span class="sub-brand">AUTONOMOUS RISK & EXECUTION ENGINE</span>
+          <h1 class="hud-title">CLAUDE TRADING</h1>
+          <span class="sub-brand">AUTONOMOUS RISK &amp; EXECUTION ENGINE // HUD V2.4</span>
         </div>
       </div>
       <div class="engine-status-badge" id="engineStatusBadge">
@@ -46,11 +50,28 @@
     <div class="nav-right">
       <div class="nav-tab-buttons" id="mainTabNavigation">
         <button class="nav-tab-btn active" data-tab="tabOverview" id="btnTabOverview">
-          <span>📊 Overview & Charts</span>
+          <svg class="tab-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="18" y1="20" x2="18" y2="10"></line>
+            <line x1="12" y1="20" x2="12" y2="4"></line>
+            <line x1="6" y1="20" x2="6" y2="14"></line>
+          </svg>
+          <span>OVERVIEW &amp; CHARTS</span>
         </button>
         <button class="nav-tab-btn" data-tab="tabLiveTrade" id="btnTabLiveTrade">
           <span class="live-dot-pulse"></span>
-          <span>⚡ Live Trade View</span>
+          <svg class="tab-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>
+          </svg>
+          <span>LIVE TRADE VIEW</span>
+        </button>
+        <button class="nav-tab-btn" data-tab="tabAgentSwarm" id="btnTabAgentSwarm">
+          <span class="swarm-dot-pulse"></span>
+          <svg class="tab-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polygon points="12 2 2 7 12 12 22 7 12 2"></polygon>
+            <polyline points="2 17 12 22 22 17"></polyline>
+            <polyline points="2 12 12 17 22 12"></polyline>
+          </svg>
+          <span>AGENT SWARM HUD</span>
         </button>
       </div>
       <div class="mode-switch-wrapper">
@@ -70,6 +91,102 @@
 
   <!-- MAIN CONTAINER -->
   <main class="dashboard-grid">
+    <!-- GLOBAL MARKET SESSIONS & TIMEZONE RADAR -->
+    <section class="market-radar-hud" id="marketRadarHud">
+      <div class="radar-hud-header">
+        <div class="radar-hud-title-wrap">
+          <div class="radar-beacon-wrap">
+            <span class="radar-ping"></span>
+            <svg class="radar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="10"></circle>
+              <line x1="2" y1="12" x2="22" y2="12"></line>
+              <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>
+            </svg>
+          </div>
+          <div>
+            <h2 class="radar-title">GLOBAL MARKET SESSIONS &amp; TIMEZONE RADAR</h2>
+            <span class="radar-subtitle">REAL-TIME TIMEZONE ARBITRATION // EXCHANGE HOLIDAY GUARDIAN</span>
+          </div>
+        </div>
+        <div class="radar-operator-meta">
+          <span class="operator-meta-tag">OPERATOR NODE:</span>
+          <span class="operator-tz-badge mono" id="radarOperatorTz">UTC</span>
+          <span class="operator-clock mono text-accent" id="radarOperatorTime">--:--:--</span>
+        </div>
+      </div>
+
+      <div class="radar-cards-grid">
+        <!-- 1. US EQUITIES -->
+        <div class="radar-card" id="radarCardUS">
+          <div class="radar-card-top">
+            <div class="radar-exchange-info">
+              <span class="exchange-region">US EQUITIES</span>
+              <span class="exchange-tag">NYSE • NASDAQ • ET</span>
+            </div>
+            <div class="radar-status-pill open" id="radarPillUS">
+              <span class="radar-status-dot"></span>
+              <span class="radar-status-text" id="radarStatusTextUS">OPEN</span>
+            </div>
+          </div>
+          <div class="radar-clock-display mono" id="radarClockUS">--:--:-- ET</div>
+          <div class="radar-session-schedule">
+            <span class="schedule-label">TRADING WINDOW:</span>
+            <span class="schedule-value mono">09:30 – 16:00 ET (Mon–Fri)</span>
+          </div>
+          <div class="radar-footer-note" id="radarNoteUS">
+            <span class="note-icon">ℹ</span>
+            <span class="note-text" id="radarDetailUS">US Market is OPEN (NYSE • NASDAQ regular hours 09:30 – 16:00 ET)</span>
+          </div>
+        </div>
+
+        <!-- 2. INDIAN EQUITIES -->
+        <div class="radar-card" id="radarCardIN">
+          <div class="radar-card-top">
+            <div class="radar-exchange-info">
+              <span class="exchange-region">INDIAN EQUITIES</span>
+              <span class="exchange-tag">NSE • BSE • IST</span>
+            </div>
+            <div class="radar-status-pill closed" id="radarPillIN">
+              <span class="radar-status-dot"></span>
+              <span class="radar-status-text" id="radarStatusTextIN">CLOSED</span>
+            </div>
+          </div>
+          <div class="radar-clock-display mono" id="radarClockIN">--:--:-- IST</div>
+          <div class="radar-session-schedule">
+            <span class="schedule-label">TRADING WINDOW:</span>
+            <span class="schedule-value mono">09:15 – 15:30 IST (Mon–Fri)</span>
+          </div>
+          <div class="radar-footer-note" id="radarNoteIN">
+            <span class="note-icon">ℹ</span>
+            <span class="note-text" id="radarDetailIN">Connecting to market guardian...</span>
+          </div>
+        </div>
+
+        <!-- 3. GLOBAL CRYPTO -->
+        <div class="radar-card active-247" id="radarCardCrypto">
+          <div class="radar-card-top">
+            <div class="radar-exchange-info">
+              <span class="exchange-region">GLOBAL CRYPTO</span>
+              <span class="exchange-tag">BINANCE • COINBASE • UTC</span>
+            </div>
+            <div class="radar-status-pill open" id="radarPillCrypto">
+              <span class="radar-status-dot"></span>
+              <span class="radar-status-text">ACTIVE 24/7</span>
+            </div>
+          </div>
+          <div class="radar-clock-display mono" id="radarClockCrypto">--:--:-- UTC</div>
+          <div class="radar-session-schedule">
+            <span class="schedule-label">TRADING WINDOW:</span>
+            <span class="schedule-value mono text-emerald">24/7/365 CONTINUOUS</span>
+          </div>
+          <div class="radar-footer-note">
+            <span class="note-icon">⚡</span>
+            <span class="note-text text-emerald">Zero weekend/holiday downtime. Autonomous execution active.</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
     <!-- TAB 1: OVERVIEW & CHARTS -->
     <div id="tabOverviewContent" class="tab-pane active">
       <!-- ROW 1: TOP STATS & CIRCUIT BREAKER BANNER -->
@@ -133,7 +250,11 @@
         </div>
         <div class="circuit-cooldown-banner hidden" id="cooldownBanner">
           <div class="cooldown-content">
-            <span class="warning-icon">⚠️</span>
+            <svg class="warning-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"></path>
+              <line x1="12" y1="9" x2="12" y2="13"></line>
+              <line x1="12" y1="17" x2="12.01" y2="17"></line>
+            </svg>
             <div class="cooldown-text">
               <span class="cooldown-reason" id="cooldownReasonText">Cooldown Triggered</span>
               <span class="cooldown-timer mono" id="cooldownTimerText">03:59:45 remaining</span>
@@ -181,15 +302,15 @@
           <div class="symbol-control-group">
             <div class="symbol-select-wrap">
               <select id="symbolSelect" class="styled-select">
-                <optgroup label="Crypto">
+                <optgroup label="Crypto (24/7 Continuous)">
                   <option value="BTC-USD">BTC-USD (Bitcoin)</option>
                   <option value="ETH-USD">ETH-USD (Ethereum)</option>
                   <option value="SOL-USD">SOL-USD (Solana)</option>
                   <option value="AVAX-USD">AVAX-USD (Avalanche)</option>
                   <option value="DOGE-USD">DOGE-USD (Dogecoin)</option>
                 </optgroup>
-                <optgroup label="Equities">
-                  <option value="SPY" selected>SPY (S&P 500 ETF)</option>
+                <optgroup label="US Equities (NYSE / NASDAQ)">
+                  <option value="SPY" selected>SPY (S&amp;P 500 ETF)</option>
                   <option value="QQQ">QQQ (Nasdaq 100 ETF)</option>
                   <option value="AAPL">AAPL (Apple Inc.)</option>
                   <option value="MSFT">MSFT (Microsoft)</option>
@@ -204,6 +325,14 @@
                   <option value="COIN">COIN (Coinbase)</option>
                   <option value="MSTR">MSTR (MicroStrategy)</option>
                 </optgroup>
+                <optgroup label="Indian Equities (NSE / BSE)">
+                  <option value="RELIANCE.NS">RELIANCE.NS (Reliance Industries)</option>
+                  <option value="TCS.NS">TCS.NS (Tata Consultancy Services)</option>
+                  <option value="INFY.NS">INFY.NS (Infosys Limited)</option>
+                  <option value="HDFCBANK.NS">HDFCBANK.NS (HDFC Bank)</option>
+                  <option value="ICICIBANK.NS">ICICIBANK.NS (ICICI Bank)</option>
+                  <option value="TATAMOTORS.BO">TATAMOTORS.BO (Tata Motors)</option>
+                </optgroup>
               </select>
             </div>
             <div class="ohlc-summary mono" id="ohlcSummary">
@@ -216,16 +345,34 @@
           </div>
 
           <div class="chart-options-group">
+            <div class="chart-indicator-tags">
+              <span class="indicator-chip ema9" title="Fast Trend Indicator (9-period Exponential Moving Average)">EMA 9</span>
+              <span class="indicator-chip ema21" title="Slow Trend Indicator (21-period Exponential Moving Average)">EMA 21</span>
+              <span class="indicator-chip vol" title="Volume Profile Indicator">VOL</span>
+            </div>
             <div class="timeframe-buttons" id="timeframeSelector">
-              <button class="tf-btn" data-tf="1m">1m</button>
-              <button class="tf-btn" data-tf="5m">5m</button>
-              <button class="tf-btn active" data-tf="15m">15m</button>
-              <button class="tf-btn" data-tf="1h">1h</button>
+              <button class="tf-btn" data-tf="1m">1M</button>
+              <button class="tf-btn" data-tf="5m">5M</button>
+              <button class="tf-btn active" data-tf="15m">15M</button>
+              <button class="tf-btn" data-tf="1h">1H</button>
               <button class="tf-btn" data-tf="1d">1D</button>
             </div>
             <div class="view-type-buttons" id="chartTypeSelector">
-              <button class="type-btn active" data-type="candle" title="Candlestick">🕯️</button>
-              <button class="type-btn" data-type="line" title="Line View">📈</button>
+              <button class="type-btn active" data-type="candle" title="Candlestick View">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                  <line x1="8" y1="2" x2="8" y2="6"></line>
+                  <rect x="5" y="6" width="6" height="12" rx="1"></rect>
+                  <line x1="8" y1="18" x2="8" y2="22"></line>
+                  <line x1="16" y1="4" x2="16" y2="8"></line>
+                  <rect x="13" y="8" width="6" height="8" rx="1"></rect>
+                  <line x1="16" y1="16" x2="16" y2="20"></line>
+                </svg>
+              </button>
+              <button class="type-btn" data-type="line" title="Area Line View">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                  <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>
+                </svg>
+              </button>
             </div>
           </div>
         </div>
@@ -249,7 +396,13 @@
       <div class="workspace-card execution-panel">
         <div class="panel-header">
           <div class="flex-row items-center gap-2">
-            <span class="panel-icon">🎯</span>
+            <svg class="panel-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="10"></circle>
+              <line x1="22" y1="12" x2="18" y2="12"></line>
+              <line x1="6" y1="12" x2="2" y2="12"></line>
+              <line x1="12" y1="6" x2="12" y2="2"></line>
+              <line x1="12" y1="22" x2="12" y2="18"></line>
+            </svg>
             <h2 class="panel-title">ORDER DISPATCH</h2>
           </div>
           <span class="stat-tag tag-green">READY</span>
@@ -318,7 +471,10 @@
       <div class="workspace-card flex-2">
         <div class="panel-header">
           <div class="flex-row items-center gap-2">
-            <span class="panel-icon">💼</span>
+            <svg class="panel-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="2" y="7" width="20" height="14" rx="2" ry="2"></rect>
+              <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path>
+            </svg>
             <h2 class="panel-title">ACTIVE POSITIONS</h2>
           </div>
           <span class="count-badge" id="openPositionCount">0 Open</span>
@@ -353,7 +509,13 @@
       <div class="workspace-card flex-1">
         <div class="panel-header">
           <div class="flex-row items-center gap-2">
-            <span class="panel-icon">📋</span>
+            <svg class="panel-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+              <polyline points="14 2 14 8 20 8"></polyline>
+              <line x1="16" y1="13" x2="8" y2="13"></line>
+              <line x1="16" y1="17" x2="8" y2="17"></line>
+              <polyline points="10 9 9 9 8 9"></polyline>
+            </svg>
             <h2 class="panel-title">TRADE LOG</h2>
           </div>
           <span class="count-badge" id="tradesCount">0 Total</span>
@@ -370,12 +532,17 @@
       <div class="workspace-card">
         <div class="panel-header">
           <div class="flex-row items-center gap-2">
-            <span class="panel-icon">🧠</span>
-            <h2 class="panel-title">CONTINUOUS LEARNING & POST-MORTEM INSPECTOR</h2>
+            <svg class="panel-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M12 2a4 4 0 0 1 4 4c0 1.1-.4 2.1-1.1 2.8l1.6 1.6A6 6 0 0 0 18 6a6 6 0 0 0-12 0c0 1.7.7 3.3 1.9 4.4l1.6-1.6A4 4 0 0 1 8 6a4 4 0 0 1 4-4z"></path>
+              <path d="M12 22a4 4 0 0 1-4-4c0-1.1.4-2.1 1.1-2.8l-1.6-1.6A6 6 0 0 0 6 18a6 6 0 0 0 12 0c0-1.7-.7-3.3-1.9-4.4l-1.6 1.6a4 4 0 0 1 1.5 2.8 4 4 0 0 1-4 4z"></path>
+              <circle cx="12" cy="12" r="2"></circle>
+            </svg>
+            <h2 class="panel-title">CONTINUOUS LEARNING &amp; POST-MORTEM INSPECTOR</h2>
           </div>
           <div class="flex-row items-center gap-2">
             <span class="stat-tag tag-purple">AUTONOMOUS MEMORY</span>
             <span class="stat-tag tag-blue">PRE-TRADE FILTER</span>
+            <span class="stat-tag tag-green" id="postMortemAuditTag">0 AUDITED RULES</span>
           </div>
         </div>
 
@@ -439,8 +606,11 @@
         <div class="workspace-card live-positions-panel">
           <div class="panel-header">
             <div class="flex-row items-center gap-2">
-              <span class="panel-icon">💼</span>
-              <h2 class="panel-title">FILLED POSITIONS & P&L SUMMARY</h2>
+              <svg class="panel-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="2" y="7" width="20" height="14" rx="2" ry="2"></rect>
+                <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path>
+              </svg>
+              <h2 class="panel-title">FILLED POSITIONS &amp; P&amp;L SUMMARY</h2>
             </div>
             <span class="count-badge" id="livePositionsBadge">0 Open</span>
           </div>
@@ -471,7 +641,9 @@
           <!-- RECENT FILLS LOG -->
           <div class="panel-header mt-3">
             <div class="flex-row items-center gap-2">
-              <span class="panel-icon">⚡</span>
+              <svg class="panel-svg text-accent" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
+              </svg>
               <h2 class="panel-title">RECENT FILLED ORDERS</h2>
             </div>
             <span class="count-badge" id="liveFillsBadge">0 Fills</span>
@@ -483,6 +655,564 @@
         </div>
       </section>
     </div><!-- END TAB 2 -->
+
+    <!-- TAB 3: AGENT SWARM HUD -->
+    <div id="tabAgentSwarmContent" class="tab-pane hidden">
+      <!-- SWARM SUPERVISOR COMMAND BAR -->
+      <section class="swarm-supervisor-bar">
+        <div class="swarm-supervisor-info">
+          <div class="swarm-status-beacon-wrap">
+            <span class="swarm-beacon-ping"></span>
+            <div class="swarm-beacon-core"></div>
+          </div>
+          <div>
+            <div class="flex-row items-center gap-2">
+              <h2 class="swarm-bar-title">SUB-AGENT MANAGER &amp; SUPERVISOR HIERARCHY</h2>
+              <span class="stat-tag tag-cyan mono">ID: agent-manager</span>
+              <span class="stat-tag tag-green mono">STATUS: ACTIVE &amp; MONITORING</span>
+            </div>
+            <p class="swarm-bar-desc">
+              All 6 specialized trading sub-agents are executed concurrently via multi-threaded ThreadPool. Manager reconciles weights and delivers unified consensus to the Orchestrator.
+            </p>
+          </div>
+        </div>
+        <div class="swarm-supervisor-metrics">
+          <div class="supervisor-metric">
+            <span class="sup-lbl">SUB-AGENTS ACTIVE</span>
+            <span class="sup-val mono text-cyan" id="swarmActiveCount">6 / 6 ONLINE</span>
+          </div>
+          <div class="supervisor-metric">
+            <span class="sup-lbl">CONCURRENT RUNS</span>
+            <span class="sup-val mono text-accent" id="swarmTotalRuns">0</span>
+          </div>
+          <div class="supervisor-metric">
+            <span class="sup-lbl">AVG LATENCY</span>
+            <span class="sup-val mono text-purple" id="swarmAvgLatency">&lt; 0.5 ms</span>
+          </div>
+          <div class="supervisor-metric">
+            <span class="sup-lbl">EXECUTION POOL</span>
+            <span class="sup-val mono text-gold">PARALLEL THREADS</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- AGENT HIERARCHY FLOW VISUALIZER -->
+      <section class="swarm-hierarchy-flow">
+        <div class="hierarchy-step">
+          <div class="hierarchy-step-badge">INPUT</div>
+          <div class="hierarchy-step-title">Universe Ingestion</div>
+          <div class="hierarchy-step-desc mono">35+ Crypto • NIFTY 50 • US Equities (Parallel Batch)</div>
+        </div>
+        <div class="hierarchy-connector">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"></polyline></svg>
+        </div>
+        <div class="hierarchy-step active">
+          <div class="hierarchy-step-badge">EXECUTION</div>
+          <div class="hierarchy-step-title">6 Specialized Sub-Agents</div>
+          <div class="hierarchy-step-desc mono">Concurrent Multi-Threaded Swarm Evaluation</div>
+        </div>
+        <div class="hierarchy-connector">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"></polyline></svg>
+        </div>
+        <div class="hierarchy-step supervisor">
+          <div class="hierarchy-step-badge">ARBITRATION</div>
+          <div class="hierarchy-step-title">SubAgentManager</div>
+          <div class="hierarchy-step-desc mono">Confidence Weights &amp; Consensus Arbitration</div>
+        </div>
+        <div class="hierarchy-connector">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"></polyline></svg>
+        </div>
+        <div class="hierarchy-step orchestrator">
+          <div class="hierarchy-step-badge">DECISION</div>
+          <div class="hierarchy-step-title">TradingBot Orchestrator</div>
+          <div class="hierarchy-step-desc mono">Final Risk Gate &amp; Order Execution Engine</div>
+        </div>
+      </section>
+
+      <!-- 6 SPECIALIZED SUB-AGENT TELEMETRY CARDS GRID -->
+      <section class="swarm-agents-grid" id="swarmAgentsGrid">
+        <!-- 1. trader-timemachine -->
+        <div class="agent-card" id="agentCard-trader-timemachine" tabindex="0">
+          <div class="agent-card-header">
+            <div class="agent-identity">
+              <div class="agent-icon-badge time">
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
+                  <circle cx="12" cy="12" r="10"></circle>
+                  <polyline points="12 6 12 12 16 14"></polyline>
+                </svg>
+              </div>
+              <div>
+                <div class="agent-id mono">trader-timemachine</div>
+                <div class="agent-role">Pattern &amp; Fractal Analogs</div>
+              </div>
+            </div>
+            <div class="flex-row items-center gap-2">
+              <span class="hover-inspect-pill mono" title="Hover to inspect live evaluation process log">🔍 HOVER LOG</span>
+              <div class="agent-status-pill online">
+                <span class="status-pulse-dot"></span>
+                <span class="status-text">ONLINE</span>
+              </div>
+            </div>
+          </div>
+          <div class="agent-body">
+            <div class="agent-meta-row">
+              <span class="agent-meta-lbl">WEIGHT:</span>
+              <span class="agent-meta-val mono text-accent">20% (0.20)</span>
+              <span class="agent-meta-lbl">LATENCY:</span>
+              <span class="agent-meta-val mono" id="lat-trader-timemachine">0.00 ms</span>
+            </div>
+            <div class="agent-signal-box">
+              <div class="signal-header">
+                <span class="sig-lbl">LATEST VERDICT:</span>
+                <span class="sig-action-badge neutral mono" id="act-trader-timemachine">STANDBY</span>
+              </div>
+              <div class="confidence-bar-wrap">
+                <div class="confidence-bar-fill" id="confBar-trader-timemachine" style="width: 0%"></div>
+              </div>
+              <div class="confidence-label mono">
+                <span>CONFIDENCE</span>
+                <strong id="confVal-trader-timemachine">0.0%</strong>
+              </div>
+            </div>
+            <div class="agent-metrics-grid" id="metrics-trader-timemachine">
+              <div class="metric-cell">
+                <span class="m-lbl">EFFICIENCY (E)</span>
+                <span class="m-val mono" id="mEff-trader-timemachine">--</span>
+              </div>
+              <div class="metric-cell">
+                <span class="m-lbl">REGIME</span>
+                <span class="m-val mono text-cyan" id="mRegime-trader-timemachine">--</span>
+              </div>
+            </div>
+            <div class="agent-reason-text" id="reason-trader-timemachine">
+              Awaiting next batch evaluation cycle...
+            </div>
+          </div>
+          <!-- LIVE HOVER PROCESS INSPECTOR POPOVER -->
+          <div class="agent-hover-popover" id="popover-trader-timemachine">
+            <div class="popover-header">
+              <div class="popover-title mono">
+                <span class="live-dot-pulse"></span>
+                <span>AUDIT LOG // trader-timemachine</span>
+              </div>
+              <span class="popover-status-badge mono">ACTIVE PROCESS</span>
+            </div>
+            <div class="popover-log-list mono" id="popoverLogs-trader-timemachine">
+              <div class="text-muted" style="font-size: 10px; padding: 12px; text-align: center;">Streaming live process evaluations...</div>
+            </div>
+            <div class="popover-footer mono">
+              <span>EVALUATIONS: <strong id="popoverTotal-trader-timemachine" class="text-accent">0</strong></span>
+              <span class="text-bullish">STREAMING LIVE</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- 2. trader-analyst -->
+        <div class="agent-card" id="agentCard-trader-analyst" tabindex="0">
+          <div class="agent-card-header">
+            <div class="agent-identity">
+              <div class="agent-icon-badge analyst">
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
+                  <line x1="18" y1="20" x2="18" y2="10"></line>
+                  <line x1="12" y1="20" x2="12" y2="4"></line>
+                  <line x1="6" y1="20" x2="6" y2="14"></line>
+                </svg>
+              </div>
+              <div>
+                <div class="agent-id mono">trader-analyst</div>
+                <div class="agent-role">Multi-Timeframe Matrix</div>
+              </div>
+            </div>
+            <div class="flex-row items-center gap-2">
+              <span class="hover-inspect-pill mono" title="Hover to inspect live evaluation process log">🔍 HOVER LOG</span>
+              <div class="agent-status-pill online">
+                <span class="status-pulse-dot"></span>
+                <span class="status-text">ONLINE</span>
+              </div>
+            </div>
+          </div>
+          <div class="agent-body">
+            <div class="agent-meta-row">
+              <span class="agent-meta-lbl">WEIGHT:</span>
+              <span class="agent-meta-val mono text-accent">25% (0.25)</span>
+              <span class="agent-meta-lbl">LATENCY:</span>
+              <span class="agent-meta-val mono" id="lat-trader-analyst">0.00 ms</span>
+            </div>
+            <div class="agent-signal-box">
+              <div class="signal-header">
+                <span class="sig-lbl">LATEST VERDICT:</span>
+                <span class="sig-action-badge neutral mono" id="act-trader-analyst">STANDBY</span>
+              </div>
+              <div class="confidence-bar-wrap">
+                <div class="confidence-bar-fill" id="confBar-trader-analyst" style="width: 0%"></div>
+              </div>
+              <div class="confidence-label mono">
+                <span>CONFIDENCE</span>
+                <strong id="confVal-trader-analyst">0.0%</strong>
+              </div>
+            </div>
+            <div class="agent-metrics-grid" id="metrics-trader-analyst">
+              <div class="metric-cell">
+                <span class="m-lbl">RSI (14)</span>
+                <span class="m-val mono" id="mRsi-trader-analyst">--</span>
+              </div>
+              <div class="metric-cell">
+                <span class="m-lbl">VOLUME SURGE</span>
+                <span class="m-val mono text-accent" id="mVol-trader-analyst">--</span>
+              </div>
+            </div>
+            <div class="agent-reason-text" id="reason-trader-analyst">
+              Awaiting next batch evaluation cycle...
+            </div>
+          </div>
+          <!-- LIVE HOVER PROCESS INSPECTOR POPOVER -->
+          <div class="agent-hover-popover" id="popover-trader-analyst">
+            <div class="popover-header">
+              <div class="popover-title mono">
+                <span class="live-dot-pulse"></span>
+                <span>AUDIT LOG // trader-analyst</span>
+              </div>
+              <span class="popover-status-badge mono">ACTIVE PROCESS</span>
+            </div>
+            <div class="popover-log-list mono" id="popoverLogs-trader-analyst">
+              <div class="text-muted" style="font-size: 10px; padding: 12px; text-align: center;">Streaming live process evaluations...</div>
+            </div>
+            <div class="popover-footer mono">
+              <span>EVALUATIONS: <strong id="popoverTotal-trader-analyst" class="text-accent">0</strong></span>
+              <span class="text-bullish">STREAMING LIVE</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- 3. trader-entry -->
+        <div class="agent-card" id="agentCard-trader-entry" tabindex="0">
+          <div class="agent-card-header">
+            <div class="agent-identity">
+              <div class="agent-icon-badge entry">
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
+                  <circle cx="12" cy="12" r="10"></circle>
+                  <line x1="22" y1="12" x2="18" y2="12"></line>
+                  <line x1="6" y1="12" x2="2" y2="12"></line>
+                  <line x1="12" y1="6" x2="12" y2="2"></line>
+                  <line x1="12" y1="22" x2="12" y2="18"></line>
+                </svg>
+              </div>
+              <div>
+                <div class="agent-id mono">trader-entry</div>
+                <div class="agent-role">VWAP Proximity Sniper</div>
+              </div>
+            </div>
+            <div class="flex-row items-center gap-2">
+              <span class="hover-inspect-pill mono" title="Hover to inspect live evaluation process log">🔍 HOVER LOG</span>
+              <div class="agent-status-pill online">
+                <span class="status-pulse-dot"></span>
+                <span class="status-text">ONLINE</span>
+              </div>
+            </div>
+          </div>
+          <div class="agent-body">
+            <div class="agent-meta-row">
+              <span class="agent-meta-lbl">WEIGHT:</span>
+              <span class="agent-meta-val mono text-accent">15% (0.15)</span>
+              <span class="agent-meta-lbl">LATENCY:</span>
+              <span class="agent-meta-val mono" id="lat-trader-entry">0.00 ms</span>
+            </div>
+            <div class="agent-signal-box">
+              <div class="signal-header">
+                <span class="sig-lbl">LATEST VERDICT:</span>
+                <span class="sig-action-badge neutral mono" id="act-trader-entry">STANDBY</span>
+              </div>
+              <div class="confidence-bar-wrap">
+                <div class="confidence-bar-fill" id="confBar-trader-entry" style="width: 0%"></div>
+              </div>
+              <div class="confidence-label mono">
+                <span>CONFIDENCE</span>
+                <strong id="confVal-trader-entry">0.0%</strong>
+              </div>
+            </div>
+            <div class="agent-metrics-grid" id="metrics-trader-entry">
+              <div class="metric-cell">
+                <span class="m-lbl">VWAP DISTANCE</span>
+                <span class="m-val mono" id="mVwap-trader-entry">--</span>
+              </div>
+              <div class="metric-cell">
+                <span class="m-lbl">OPTIMAL ENTRY</span>
+                <span class="m-val mono text-gold" id="mOptPrice-trader-entry">--</span>
+              </div>
+            </div>
+            <div class="agent-reason-text" id="reason-trader-entry">
+              Awaiting next batch evaluation cycle...
+            </div>
+          </div>
+          <!-- LIVE HOVER PROCESS INSPECTOR POPOVER -->
+          <div class="agent-hover-popover" id="popover-trader-entry">
+            <div class="popover-header">
+              <div class="popover-title mono">
+                <span class="live-dot-pulse"></span>
+                <span>AUDIT LOG // trader-entry</span>
+              </div>
+              <span class="popover-status-badge mono">ACTIVE PROCESS</span>
+            </div>
+            <div class="popover-log-list mono" id="popoverLogs-trader-entry">
+              <div class="text-muted" style="font-size: 10px; padding: 12px; text-align: center;">Streaming live process evaluations...</div>
+            </div>
+            <div class="popover-footer mono">
+              <span>EVALUATIONS: <strong id="popoverTotal-trader-entry" class="text-accent">0</strong></span>
+              <span class="text-bullish">STREAMING LIVE</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- 4. trader-exit -->
+        <div class="agent-card" id="agentCard-trader-exit" tabindex="0">
+          <div class="agent-card-header">
+            <div class="agent-identity">
+              <div class="agent-icon-badge exit">
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+                </svg>
+              </div>
+              <div>
+                <div class="agent-id mono">trader-exit</div>
+                <div class="agent-role">Trailing Stop Guardian</div>
+              </div>
+            </div>
+            <div class="flex-row items-center gap-2">
+              <span class="hover-inspect-pill mono" title="Hover to inspect live evaluation process log">🔍 HOVER LOG</span>
+              <div class="agent-status-pill online">
+                <span class="status-pulse-dot"></span>
+                <span class="status-text">ONLINE</span>
+              </div>
+            </div>
+          </div>
+          <div class="agent-body">
+            <div class="agent-meta-row">
+              <span class="agent-meta-lbl">WEIGHT:</span>
+              <span class="agent-meta-val mono text-accent">15% (0.15)</span>
+              <span class="agent-meta-lbl">LATENCY:</span>
+              <span class="agent-meta-val mono" id="lat-trader-exit">0.00 ms</span>
+            </div>
+            <div class="agent-signal-box">
+              <div class="signal-header">
+                <span class="sig-lbl">LATEST VERDICT:</span>
+                <span class="sig-action-badge neutral mono" id="act-trader-exit">STANDBY</span>
+              </div>
+              <div class="confidence-bar-wrap">
+                <div class="confidence-bar-fill" id="confBar-trader-exit" style="width: 0%"></div>
+              </div>
+              <div class="confidence-label mono">
+                <span>CONFIDENCE</span>
+                <strong id="confVal-trader-exit">0.0%</strong>
+              </div>
+            </div>
+            <div class="agent-metrics-grid" id="metrics-trader-exit">
+              <div class="metric-cell">
+                <span class="m-lbl">ATR (14)</span>
+                <span class="m-val mono" id="mAtr-trader-exit">--</span>
+              </div>
+              <div class="metric-cell">
+                <span class="m-lbl">STOP DISTANCE</span>
+                <span class="m-val mono text-purple" id="mStopDist-trader-exit">--</span>
+              </div>
+            </div>
+            <div class="agent-reason-text" id="reason-trader-exit">
+              Awaiting next batch evaluation cycle...
+            </div>
+          </div>
+          <!-- LIVE HOVER PROCESS INSPECTOR POPOVER -->
+          <div class="agent-hover-popover" id="popover-trader-exit">
+            <div class="popover-header">
+              <div class="popover-title mono">
+                <span class="live-dot-pulse"></span>
+                <span>AUDIT LOG // trader-exit</span>
+              </div>
+              <span class="popover-status-badge mono">ACTIVE PROCESS</span>
+            </div>
+            <div class="popover-log-list mono" id="popoverLogs-trader-exit">
+              <div class="text-muted" style="font-size: 10px; padding: 12px; text-align: center;">Streaming live process evaluations...</div>
+            </div>
+            <div class="popover-footer mono">
+              <span>EVALUATIONS: <strong id="popoverTotal-trader-exit" class="text-accent">0</strong></span>
+              <span class="text-bullish">STREAMING LIVE</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- 5. trader-news -->
+        <div class="agent-card" id="agentCard-trader-news" tabindex="0">
+          <div class="agent-card-header">
+            <div class="agent-identity">
+              <div class="agent-icon-badge news">
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M4 11a9 9 0 0 1 9 9"></path>
+                  <path d="M4 4a16 16 0 0 1 16 16"></path>
+                  <circle cx="5" cy="19" r="1"></circle>
+                </svg>
+              </div>
+              <div>
+                <div class="agent-id mono">trader-news</div>
+                <div class="agent-role">Macro Sentiment Scorer</div>
+              </div>
+            </div>
+            <div class="flex-row items-center gap-2">
+              <span class="hover-inspect-pill mono" title="Hover to inspect live evaluation process log">🔍 HOVER LOG</span>
+              <div class="agent-status-pill online">
+                <span class="status-pulse-dot"></span>
+                <span class="status-text">ONLINE</span>
+              </div>
+            </div>
+          </div>
+          <div class="agent-body">
+            <div class="agent-meta-row">
+              <span class="agent-meta-lbl">WEIGHT:</span>
+              <span class="agent-meta-val mono text-accent">10% (0.10)</span>
+              <span class="agent-meta-lbl">LATENCY:</span>
+              <span class="agent-meta-val mono" id="lat-trader-news">0.00 ms</span>
+            </div>
+            <div class="agent-signal-box">
+              <div class="signal-header">
+                <span class="sig-lbl">LATEST VERDICT:</span>
+                <span class="sig-action-badge neutral mono" id="act-trader-news">STANDBY</span>
+              </div>
+              <div class="confidence-bar-wrap">
+                <div class="confidence-bar-fill" id="confBar-trader-news" style="width: 0%"></div>
+              </div>
+              <div class="confidence-label mono">
+                <span>CONFIDENCE</span>
+                <strong id="confVal-trader-news">0.0%</strong>
+              </div>
+            </div>
+            <div class="agent-metrics-grid" id="metrics-trader-news">
+              <div class="metric-cell">
+                <span class="m-lbl">SENTIMENT SCORE</span>
+                <span class="m-val mono" id="mSent-trader-news">--</span>
+              </div>
+              <div class="metric-cell">
+                <span class="m-lbl">CATALYST BIAS</span>
+                <span class="m-val mono text-cyan" id="mBias-trader-news">--</span>
+              </div>
+            </div>
+            <div class="agent-reason-text" id="reason-trader-news">
+              Awaiting next batch evaluation cycle...
+            </div>
+          </div>
+          <!-- LIVE HOVER PROCESS INSPECTOR POPOVER -->
+          <div class="agent-hover-popover" id="popover-trader-news">
+            <div class="popover-header">
+              <div class="popover-title mono">
+                <span class="live-dot-pulse"></span>
+                <span>AUDIT LOG // trader-news</span>
+              </div>
+              <span class="popover-status-badge mono">ACTIVE PROCESS</span>
+            </div>
+            <div class="popover-log-list mono" id="popoverLogs-trader-news">
+              <div class="text-muted" style="font-size: 10px; padding: 12px; text-align: center;">Streaming live process evaluations...</div>
+            </div>
+            <div class="popover-footer mono">
+              <span>EVALUATIONS: <strong id="popoverTotal-trader-news" class="text-accent">0</strong></span>
+              <span class="text-bullish">STREAMING LIVE</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- 6. trader-pelosi -->
+        <div class="agent-card" id="agentCard-trader-pelosi" tabindex="0">
+          <div class="agent-card-header">
+            <div class="agent-identity">
+              <div class="agent-icon-badge pelosi">
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
+                  <polygon points="12 2 2 7 12 12 22 7 12 2"></polygon>
+                  <polyline points="2 17 12 22 22 17"></polyline>
+                  <polyline points="2 12 12 17 22 12"></polyline>
+                </svg>
+              </div>
+              <div>
+                <div class="agent-id mono">trader-pelosi</div>
+                <div class="agent-role">Capitol &amp; Whale Flow</div>
+              </div>
+            </div>
+            <div class="flex-row items-center gap-2">
+              <span class="hover-inspect-pill mono" title="Hover to inspect live evaluation process log">🔍 HOVER LOG</span>
+              <div class="agent-status-pill online">
+                <span class="status-pulse-dot"></span>
+                <span class="status-text">ONLINE</span>
+              </div>
+            </div>
+          </div>
+          <div class="agent-body">
+            <div class="agent-meta-row">
+              <span class="agent-meta-lbl">WEIGHT:</span>
+              <span class="agent-meta-val mono text-accent">15% (0.15)</span>
+              <span class="agent-meta-lbl">LATENCY:</span>
+              <span class="agent-meta-val mono" id="lat-trader-pelosi">0.00 ms</span>
+            </div>
+            <div class="agent-signal-box">
+              <div class="signal-header">
+                <span class="sig-lbl">LATEST VERDICT:</span>
+                <span class="sig-action-badge neutral mono" id="act-trader-pelosi">STANDBY</span>
+              </div>
+              <div class="confidence-bar-wrap">
+                <div class="confidence-bar-fill" id="confBar-trader-pelosi" style="width: 0%"></div>
+              </div>
+              <div class="confidence-label mono">
+                <span>CONFIDENCE</span>
+                <strong id="confVal-trader-pelosi">0.0%</strong>
+              </div>
+            </div>
+            <div class="agent-metrics-grid" id="metrics-trader-pelosi">
+              <div class="metric-cell">
+                <span class="m-lbl">CONGRESSIONAL BIAS</span>
+                <span class="m-val mono text-gold" id="mPelosi-trader-pelosi">--</span>
+              </div>
+              <div class="metric-cell">
+                <span class="m-lbl">DARK POOL VOLUME</span>
+                <span class="m-val mono" id="mDarkPool-trader-pelosi">--</span>
+              </div>
+            </div>
+            <div class="agent-reason-text" id="reason-trader-pelosi">
+              Awaiting next batch evaluation cycle...
+            </div>
+          </div>
+          <!-- LIVE HOVER PROCESS INSPECTOR POPOVER -->
+          <div class="agent-hover-popover" id="popover-trader-pelosi">
+            <div class="popover-header">
+              <div class="popover-title mono">
+                <span class="live-dot-pulse"></span>
+                <span>AUDIT LOG // trader-pelosi</span>
+              </div>
+              <span class="popover-status-badge mono">ACTIVE PROCESS</span>
+            </div>
+            <div class="popover-log-list mono" id="popoverLogs-trader-pelosi">
+              <div class="text-muted" style="font-size: 10px; padding: 12px; text-align: center;">Streaming live process evaluations...</div>
+            </div>
+            <div class="popover-footer mono">
+              <span>EVALUATIONS: <strong id="popoverTotal-trader-pelosi" class="text-accent">0</strong></span>
+              <span class="text-bullish">STREAMING LIVE</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- REAL-TIME SWARM CONSENSUS STREAM -->
+      <section class="swarm-consensus-section">
+        <div class="workspace-card">
+          <div class="panel-header">
+            <div class="flex-row items-center gap-2">
+              <svg class="panel-svg text-accent" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polygon points="12 2 2 7 12 12 22 7 12 2"></polygon>
+                <polyline points="2 17 12 22 22 17"></polyline>
+                <polyline points="2 12 12 17 22 12"></polyline>
+              </svg>
+              <h2 class="panel-title">RECENT SWARM CONSENSUS ARBITRATIONS</h2>
+            </div>
+            <span class="count-badge" id="swarmConsensusCount">Latest Evaluations</span>
+          </div>
+          <div class="consensus-stream-list" id="swarmConsensusList">
+            <div class="empty-state-text">Scanning broad market universes... Consensus reports will stream here in real time.</div>
+          </div>
+        </div>
+      </section>
+    </div><!-- END TAB 3 -->
   </main>
 
   <!-- TOAST NOTIFICATIONS -->

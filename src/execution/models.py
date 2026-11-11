@@ -88,15 +88,22 @@ class Position:
     stop_loss: Optional[float] = None
     take_profit: Optional[float] = None
     strategy: str = "MANUAL"
+    highest_price: Optional[float] = None
+    lowest_price: Optional[float] = None
+    is_breakeven_set: bool = False
 
     def update_price(self, new_price: float) -> None:
         """Update current price and recalculate unrealized P&L."""
         self.current_price = new_price
         if self.side.upper() == "SHORT":
+            if self.lowest_price is None or new_price < self.lowest_price:
+                self.lowest_price = new_price
             self.unrealized_pnl = (self.entry_price - new_price) * self.quantity
             if self.entry_price > 0:
                 self.unrealized_pnl_pct = (self.entry_price - new_price) / self.entry_price
         else:
+            if self.highest_price is None or new_price > self.highest_price:
+                self.highest_price = new_price
             self.unrealized_pnl = (new_price - self.entry_price) * self.quantity
             if self.entry_price > 0:
                 self.unrealized_pnl_pct = (new_price - self.entry_price) / self.entry_price

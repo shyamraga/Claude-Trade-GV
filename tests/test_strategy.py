@@ -89,6 +89,8 @@ class TestTrendPreview(unittest.TestCase):
 
         # Should have golden cross signal when fast crosses above slow
         self.assertGreater(len(buy_signals), 0, "MACrossover should generate BUY signals on crossover")
+        self.assertIsNotNone(buy_signals[0].take_profit, "Golden cross signal must include dynamic take-profit")
+        self.assertGreater(buy_signals[0].take_profit, buy_signals[0].price, "Buy take profit must be above entry price")
 
     def test_macrossover_death_cross_short_signal(self):
         # Create price series where fast EMA crosses below slow EMA (Death Cross)
@@ -112,6 +114,8 @@ class TestTrendPreview(unittest.TestCase):
         sell_signals = [s for s in signals if s.action == SignalAction.SELL]
         self.assertGreater(len(sell_signals), 0, "MACrossover should generate SELL (Short) signals on death cross")
         self.assertGreater(sell_signals[0].stop_loss, sell_signals[0].price, "Short stop loss should be above price")
+        self.assertIsNotNone(sell_signals[0].take_profit, "Death cross short signal must include dynamic take-profit")
+        self.assertLess(sell_signals[0].take_profit, sell_signals[0].price, "Short take profit must be below entry price")
 
     def test_orb_breakdown_short_signal(self):
         # Opening range: 3 bars between 98 and 102 with avg volume 1000
@@ -158,6 +162,8 @@ class TestTrendPreview(unittest.TestCase):
         sell_signals = [s for s in signals if s.action == SignalAction.SELL]
         self.assertEqual(len(sell_signals), 1, "ORB should generate SELL (Short) signal on breakdown below opening low")
         self.assertEqual(sell_signals[0].stop_loss, 102.0, "Short stop loss should be at opening high")
+        self.assertIsNotNone(sell_signals[0].take_profit, "ORB short breakdown signal must include dynamic take-profit")
+        self.assertLess(sell_signals[0].take_profit, sell_signals[0].price, "Short take profit must be below entry price")
 
     def test_rsi_overbought_bearish_reversion_short_signal(self):
         # Build prices that rally up high (RSI > 70) and then start reversing down (RSI crosses below 70)
@@ -182,6 +188,8 @@ class TestTrendPreview(unittest.TestCase):
         sell_signals = [s for s in signals if s.action == SignalAction.SELL]
         self.assertGreater(len(sell_signals), 0, "RSI should generate SELL (Short) signal on bearish reversion from overbought")
         self.assertGreater(sell_signals[0].stop_loss, sell_signals[0].price, "Short stop loss should be above price")
+        self.assertIsNotNone(sell_signals[0].take_profit, "RSI short reversion signal must include dynamic take-profit")
+        self.assertLess(sell_signals[0].take_profit, sell_signals[0].price, "Short take profit must be below entry price")
 
     def test_trend_following_downtrend_short_signal(self):
         # 60 bars: first 35 bars ranging around 150-155, then sustained downtrend to 120
@@ -210,6 +218,8 @@ class TestTrendPreview(unittest.TestCase):
         sell_signals = [s for s in signals if s.action == SignalAction.SELL]
         self.assertGreater(len(sell_signals), 0, "TrendFollowing should generate SELL (Short) signal on downtrend")
         self.assertGreater(sell_signals[0].stop_loss, sell_signals[0].price, "Short stop loss should be above entry price")
+        self.assertIsNotNone(sell_signals[0].take_profit, "TrendFollowing short signal must include dynamic take-profit")
+        self.assertLess(sell_signals[0].take_profit, sell_signals[0].price, "Short take profit must be below entry price")
 
 
 class TestStrategyEngine(unittest.TestCase):

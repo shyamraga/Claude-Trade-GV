@@ -7,10 +7,12 @@ import threading
 import unittest
 import urllib.request
 import urllib.error
-from http.server import HTTPServer
+from http.server import ThreadingHTTPServer
 from pathlib import Path
+from unittest.mock import MagicMock
 
 from src.api.server import DashboardAPIHandler
+from src.data.models import Bar, TimeFrame
 from src.execution.engine import ExecutionEngine, ExecutionMode
 from src.execution.models import OrderSide, OrderStatus
 from src.execution.virtual_broker import VirtualBroker
@@ -35,17 +37,26 @@ class TestDashboardAPIServer(unittest.TestCase):
             post_mortem_repo=cls.post_mortem_repo,
         )
         from src.storage.db import Database
+        from datetime import datetime, timezone
         cls.db = Database(str(cls.temp_dir / "test_market.db"))
         cls.market_repo = MarketDataRepository(db=cls.db)
+
+        # Mock feed manager to isolate unit tests from external API rate-limits
+        cls.mock_feed = MagicMock()
+        cls.mock_feed.get_bars.return_value = [
+            Bar("SPY", datetime.now(timezone.utc), 580.0, 585.0, 578.0, 582.0, 10000)
+            for _ in range(15)
+        ]
 
         # Initialize handler singletons
         DashboardAPIHandler.initialize_services(
             engine=cls.engine,
             market_repo=cls.market_repo,
+            feed_manager=cls.mock_feed,
         )
 
         # Bind to port 0 for an ephemeral free port
-        cls.server = HTTPServer(("127.0.0.1", 0), DashboardAPIHandler)
+        cls.server = ThreadingHTTPServer(("127.0.0.1", 0), DashboardAPIHandler)
         cls.port = cls.server.server_address[1]
         cls.base_url = f"http://127.0.0.1:{cls.port}"
 
@@ -128,6 +139,16 @@ class TestDashboardAPIServer(unittest.TestCase):
         self.assertEqual(data["timeframe"], "15m")
         self.assertGreater(len(data["bars"]), 0)
 
+    def test_get_market_summary(self):
+        """Test GET /api/market-summary endpoint."""
+        status, data = self._get("/api/market-summary")
+        self.assertEqual(status, 200)
+        self.assertIn("us_market", data)
+        self.assertIn("indian_market", data)
+        self.assertIn("crypto_market", data)
+        self.assertIn("open", data["crypto_market"])
+        self.assertTrue(data["crypto_market"]["open"])
+
     def test_execute_order(self):
         """Test POST /api/execute endpoint."""
         payload = {
@@ -168,6 +189,20 @@ class TestDashboardAPIServer(unittest.TestCase):
         self.assertEqual(status, 200)
         self.assertIn("post_mortems", data)
         self.assertIsInstance(data["post_mortems"], list)
+
+    def test_get_agents(self):
+        """Test GET /api/agents endpoint."""
+        status, data = self._get("/api/agents")
+        self.assertEqual(status, 200)
+        self.assertEqual(data.get("manager_id"), "agent-manager")
+        self.assertEqual(data.get("total_sub_agents"), 6)
+        self.assertIn("agents", data)
+        self.assertIn("trader-timemachine", data["agents"])
+        self.assertIn("trader-analyst", data["agents"])
+        self.assertIn("trader-entry", data["agents"])
+        self.assertIn("trader-exit", data["agents"])
+        self.assertIn("trader-news", data["agents"])
+        self.assertIn("trader-pelosi", data["agents"])
 
     def test_serve_static_files(self):
         """Test serving index.html, styles.css, and app.js."""

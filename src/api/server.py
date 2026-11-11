@@ -1,18 +1,22 @@
 """REST API and static file web server for Claude Trading Dashboard."""
 
+import time
 import json
 import logging
-from http.server import HTTPServer, SimpleHTTPRequestHandler
+from http.server import HTTPServer, ThreadingHTTPServer, SimpleHTTPRequestHandler
 from pathlib import Path
 from urllib.parse import urlparse, parse_qs
 from typing import Optional
 
 from src.data.models import TimeFrame
+from src.data.feed_manager import FeedManager
 from src.execution.engine import ExecutionEngine, ExecutionMode
 from src.execution.virtual_broker import VirtualBroker
 from src.risk.circuit_breaker import CircuitBreaker
 from src.risk.post_mortem import PostMortemRepository
+from src.risk.market_hours import MarketHoursManager
 from src.storage.repository import MarketDataRepository
+from src.ai.agent_manager import SubAgentManager
 
 logger = logging.getLogger(__name__)
 
@@ -23,6 +27,8 @@ class DashboardAPIHandler(SimpleHTTPRequestHandler):
     # Class-level shared singletons
     engine: Optional[ExecutionEngine] = None
     market_repo: Optional[MarketDataRepository] = None
+    feed_manager: Optional[FeedManager] = None
+    sub_agent_manager: Optional[SubAgentManager] = None
     scanner_logs: list = []
 
     @classmethod
@@ -46,10 +52,18 @@ class DashboardAPIHandler(SimpleHTTPRequestHandler):
         cls,
         engine: Optional[ExecutionEngine] = None,
         market_repo: Optional[MarketDataRepository] = None,
+        feed_manager: Optional[FeedManager] = None,
+        sub_agent_manager: Optional[SubAgentManager] = None,
     ):
-        """Configure shared service instances."""
-        cls.engine = engine or ExecutionEngine()
-        cls.market_repo = market_repo or MarketDataRepository()
+        """Configure shared service instances without clobbering existing instances."""
+        if engine is not None or cls.engine is None:
+            cls.engine = engine or ExecutionEngine()
+        if market_repo is not None or cls.market_repo is None:
+            cls.market_repo = market_repo or MarketDataRepository()
+        if feed_manager is not None or cls.feed_manager is None:
+            cls.feed_manager = feed_manager or FeedManager()
+        if sub_agent_manager is not None or cls.sub_agent_manager is None:
+            cls.sub_agent_manager = sub_agent_manager or SubAgentManager()
 
     def end_headers(self):
         """Inject CORS headers."""
@@ -159,41 +173,126 @@ class DashboardAPIHandler(SimpleHTTPRequestHandler):
             self._send_json({"trades": trades})
 
         elif path == "/api/post-mortems":
-            limit = int(query.get("limit", [5])[0])
+            limit = int(query.get("limit", [50])[0])
             pms = [pm.to_dict() for pm in engine.post_mortem_repo.get_recent_post_mortems(limit=limit)]
-            self._send_json({"post_mortems": pms})
+            total_count = len(engine.post_mortem_repo._cache)
+            self._send_json({"post_mortems": pms, "total_count": total_count})
 
         elif path == "/api/scanner-logs":
             limit = int(query.get("limit", [50])[0])
             self._send_json({"logs": self.scanner_logs[-limit:]})
 
+        elif path in ("/api/market-hours", "/api/market-summary"):
+            summary = MarketHoursManager.get_open_markets_summary()
+            self._send_json(summary)
+
+        elif path == "/api/agents":
+            if not self.sub_agent_manager:
+                self.sub_agent_manager = SubAgentManager()
+            telemetry = self.sub_agent_manager.get_swarm_telemetry()
+            self._send_json(telemetry)
+
         elif path == "/api/bars":
-            symbol = query.get("symbol", ["SPY"])[0].upper()
-            timeframe = query.get("timeframe", ["15m"])[0]
+            raw_symbol = query.get("symbol", ["SPY"])[0].upper().strip()
+            timeframe_str = query.get("timeframe", ["15m"])[0]
             limit = int(query.get("limit", [100])[0])
 
+            # Normalize crypto tickers so "BTC" maps directly to liquid "BTC-USD"
+            if raw_symbol in ("BTC", "BITCOIN"):
+                symbol = "BTC-USD"
+            elif raw_symbol in ("ETH", "ETHEREUM"):
+                symbol = "ETH-USD"
+            elif raw_symbol in ("SOL", "SOLANA"):
+                symbol = "SOL-USD"
+            elif raw_symbol in ("DOGE", "DOGECOIN"):
+                symbol = "DOGE-USD"
+            elif raw_symbol in ("AVAX", "AVALANCHE"):
+                symbol = "AVAX-USD"
+            else:
+                symbol = raw_symbol
+
+            try:
+                tf_enum = TimeFrame(timeframe_str)
+            except Exception:
+                tf_enum = TimeFrame.M15
+
             bars = []
-            if self.market_repo:
+            # 1. Try FeedManager for real live market data
+            try:
+                if not self.feed_manager:
+                    self.feed_manager = FeedManager()
+                live_bars = self.feed_manager.get_bars(symbol, timeframe=tf_enum, limit=limit)
+                if live_bars:
+                    bars = [b.to_dict() for b in live_bars]
+            except Exception as e:
+                logger.warning(f"FeedManager fetch failed for {symbol}: {e}")
+
+            # 2. Try database repository
+            if not bars and self.market_repo:
                 try:
-                    tf_enum = TimeFrame(timeframe)
                     db_bars = self.market_repo.get_bars(symbol, tf_enum, limit=limit)
                     bars = [b.to_dict() for b in db_bars]
                 except Exception as e:
                     logger.debug(f"Could not load bars from DB: {e}")
 
-            # If no bars in DB, generate synthetic or default test data
+            # 3. Fallback: only if live feed and DB are both unavailable
             if not bars:
+                # Realistic price baseline by asset class to prevent misleading $150 defaults
+                anchor_price = 150.0
+                if "BTC" in symbol:
+                    anchor_price = 74500.0
+                elif "ETH" in symbol:
+                    anchor_price = 2100.0
+                elif "SOL" in symbol:
+                    anchor_price = 85.0
+                elif "DOGE" in symbol:
+                    anchor_price = 0.07
+                elif "AVAX" in symbol:
+                    anchor_price = 8.60
+                elif "SPY" in symbol:
+                    anchor_price = 758.0
+                elif "QQQ" in symbol:
+                    anchor_price = 688.0
+                elif "AAPL" in symbol:
+                    anchor_price = 225.0
+                elif "MSFT" in symbol:
+                    anchor_price = 420.0
+                elif "NVDA" in symbol:
+                    anchor_price = 145.0
+                elif "TSLA" in symbol:
+                    anchor_price = 215.0
+                elif "AMZN" in symbol:
+                    anchor_price = 205.0
+                elif "GOOGL" in symbol:
+                    anchor_price = 180.0
+                elif "META" in symbol:
+                    anchor_price = 580.0
+                elif "NFLX" in symbol:
+                    anchor_price = 810.0
+                elif "AMD" in symbol:
+                    anchor_price = 140.0
+                elif "COIN" in symbol:
+                    anchor_price = 290.0
+                elif "MSTR" in symbol:
+                    anchor_price = 330.0
+                elif ".NS" in symbol or ".BO" in symbol:
+                    anchor_price = 1350.0
+
                 import random
-                price = 150.0
+                from datetime import datetime, timezone, timedelta
+                now = datetime.now(timezone.utc)
+                price = anchor_price
+                step_minutes = tf_enum.minutes
                 for i in range(30):
-                    change = random.uniform(-1.5, 1.8)
-                    high = price + random.uniform(0.2, 1.0)
-                    low = price - random.uniform(0.2, 1.0)
+                    bar_time = now - timedelta(minutes=(30 - i) * step_minutes)
+                    change = random.uniform(-price * 0.004, price * 0.005)
+                    high = price + random.uniform(0.001 * price, 0.003 * price)
+                    low = price - random.uniform(0.001 * price, 0.003 * price)
                     close = price + change
                     bars.append({
                         "symbol": symbol,
-                        "timeframe": timeframe,
-                        "timestamp": f"2026-11-10T09:{i*2:02d}:00",
+                        "timeframe": timeframe_str,
+                        "timestamp": bar_time.isoformat(),
                         "open": round(price, 2),
                         "high": round(high, 2),
                         "low": round(low, 2),
@@ -202,7 +301,7 @@ class DashboardAPIHandler(SimpleHTTPRequestHandler):
                     })
                     price = close
 
-            self._send_json({"symbol": symbol, "timeframe": timeframe, "bars": bars})
+            self._send_json({"symbol": symbol, "timeframe": timeframe_str, "bars": bars})
 
         else:
             self._send_json({"error": f"Endpoint not found: {path}"}, status=404)
@@ -282,11 +381,22 @@ class DashboardAPIHandler(SimpleHTTPRequestHandler):
             self._send_json({"error": f"POST endpoint not found: {path}"}, status=404)
 
 
-def run_server(port: int = 8000, engine: Optional[ExecutionEngine] = None):
+def run_server(
+    port: int = 8000,
+    engine: Optional[ExecutionEngine] = None,
+    market_repo: Optional[MarketDataRepository] = None,
+    feed_manager: Optional[FeedManager] = None,
+    sub_agent_manager: Optional[SubAgentManager] = None,
+):
     """Start local dashboard HTTP server."""
-    DashboardAPIHandler.initialize_services(engine=engine)
-    HTTPServer.allow_reuse_address = True
+    DashboardAPIHandler.initialize_services(
+        engine=engine,
+        market_repo=market_repo,
+        feed_manager=feed_manager,
+        sub_agent_manager=sub_agent_manager,
+    )
+    ThreadingHTTPServer.allow_reuse_address = True
     server_address = ("", port)
-    httpd = HTTPServer(server_address, DashboardAPIHandler)
+    httpd = ThreadingHTTPServer(server_address, DashboardAPIHandler)
     logger.info(f"Dashboard server running at http://localhost:{port}/")
     return httpd

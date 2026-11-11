@@ -18,7 +18,8 @@ class MACrossoverStrategy(Strategy):
         fast_period: int = 9,
         slow_period: int = 21,
         atr_period: int = 14,
-        atr_multiplier: float = 2.0,
+        atr_multiplier: float = 1.5,
+        take_profit_multiplier: float = 3.0,
     ):
         super().__init__(
             name="MA_Crossover",
@@ -27,12 +28,14 @@ class MACrossoverStrategy(Strategy):
                 "slow_period": slow_period,
                 "atr_period": atr_period,
                 "atr_multiplier": atr_multiplier,
+                "take_profit_multiplier": take_profit_multiplier,
             },
         )
         self.fast_period = fast_period
         self.slow_period = slow_period
         self.atr_period = atr_period
         self.atr_multiplier = atr_multiplier
+        self.take_profit_multiplier = take_profit_multiplier
 
     def generate_signals(self, bars: List[Bar]) -> List[Signal]:
         if len(bars) < self.slow_period:
@@ -66,6 +69,7 @@ class MACrossoverStrategy(Strategy):
                 if prev_fast <= prev_slow and curr_fast > curr_slow:
                     atr = atr_values[i]
                     stop_loss = bar.close - (atr * self.atr_multiplier) if atr else bar.close * 0.98
+                    take_profit = bar.close + (atr * self.take_profit_multiplier) if atr else bar.close * 1.05
 
                     # Calculate confidence based on EMA separation
                     ema_separation = (curr_fast - curr_slow) / curr_slow
@@ -86,6 +90,7 @@ class MACrossoverStrategy(Strategy):
                             },
                             reason=f"Golden cross: EMA{self.fast_period} ({curr_fast:.2f}) crossed above EMA{self.slow_period} ({curr_slow:.2f})",
                             stop_loss=round(stop_loss, 2),
+                            take_profit=round(take_profit, 2),
                         )
                     )
 
@@ -93,6 +98,7 @@ class MACrossoverStrategy(Strategy):
                 elif prev_fast >= prev_slow and curr_fast < curr_slow:
                     atr = atr_values[i]
                     stop_loss = bar.close + (atr * self.atr_multiplier) if atr else bar.close * 1.02
+                    take_profit = bar.close - (atr * self.take_profit_multiplier) if atr else bar.close * 0.95
 
                     # Calculate confidence based on EMA separation
                     ema_separation = (curr_slow - curr_fast) / curr_slow
@@ -113,6 +119,7 @@ class MACrossoverStrategy(Strategy):
                             },
                             reason=f"Death cross: EMA{self.fast_period} ({curr_fast:.2f}) crossed below EMA{self.slow_period} ({curr_slow:.2f})",
                             stop_loss=round(stop_loss, 2),
+                            take_profit=round(take_profit, 2),
                         )
                     )
 

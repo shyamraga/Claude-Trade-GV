@@ -19,7 +19,8 @@ class RSIMeanReversionStrategy(Strategy):
         oversold_threshold: float = 30.0,
         overbought_threshold: float = 70.0,
         atr_period: int = 14,
-        atr_multiplier: float = 2.0,
+        atr_multiplier: float = 1.5,
+        take_profit_multiplier: float = 2.5,
     ):
         super().__init__(
             name="RSI_MeanReversion",
@@ -29,6 +30,7 @@ class RSIMeanReversionStrategy(Strategy):
                 "overbought_threshold": overbought_threshold,
                 "atr_period": atr_period,
                 "atr_multiplier": atr_multiplier,
+                "take_profit_multiplier": take_profit_multiplier,
             },
         )
         self.rsi_period = rsi_period
@@ -36,6 +38,7 @@ class RSIMeanReversionStrategy(Strategy):
         self.overbought_threshold = overbought_threshold
         self.atr_period = atr_period
         self.atr_multiplier = atr_multiplier
+        self.take_profit_multiplier = take_profit_multiplier
 
     def generate_signals(self, bars: List[Bar]) -> List[Signal]:
         if len(bars) < self.rsi_period + 1:
@@ -60,6 +63,7 @@ class RSIMeanReversionStrategy(Strategy):
             if prev_rsi is not None and prev_rsi < self.oversold_threshold and curr_rsi > self.oversold_threshold:
                 atr = atr_values[i]
                 stop_loss = bar.close - (atr * self.atr_multiplier) if atr else bar.close * 0.97
+                take_profit = bar.close + (atr * self.take_profit_multiplier) if atr else bar.close * 1.04
 
                 # Confidence based on how deep the oversold was and how fast it recovered
                 oversold_depth = (self.oversold_threshold - min(prev_rsi, curr_rsi)) / self.oversold_threshold
@@ -79,6 +83,7 @@ class RSIMeanReversionStrategy(Strategy):
                         },
                         reason=f"RSI mean reversion: RSI ({curr_rsi:.1f}) exited oversold zone (< {self.oversold_threshold})",
                         stop_loss=round(stop_loss, 2),
+                        take_profit=round(take_profit, 2),
                     )
                 )
 
@@ -86,6 +91,7 @@ class RSIMeanReversionStrategy(Strategy):
             elif prev_rsi is not None and prev_rsi > self.overbought_threshold and curr_rsi < self.overbought_threshold:
                 atr = atr_values[i]
                 stop_loss = bar.close + (atr * self.atr_multiplier) if atr else bar.close * 1.03
+                take_profit = bar.close - (atr * self.take_profit_multiplier) if atr else bar.close * 0.96
 
                 # Confidence based on how deep the overbought peak was
                 overbought_depth = (max(prev_rsi, curr_rsi) - self.overbought_threshold) / (100.0 - self.overbought_threshold) if self.overbought_threshold < 100.0 else 0.1
@@ -105,6 +111,7 @@ class RSIMeanReversionStrategy(Strategy):
                         },
                         reason=f"RSI bearish reversion: RSI ({curr_rsi:.1f}) crossed back below overbought zone (> {self.overbought_threshold})",
                         stop_loss=round(stop_loss, 2),
+                        take_profit=round(take_profit, 2),
                     )
                 )
 

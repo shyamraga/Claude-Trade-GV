@@ -24,7 +24,8 @@ class TrendFollowingStrategy(Strategy):
         rsi_lower: float = 50.0,
         rsi_upper: float = 70.0,
         atr_period: int = 14,
-        atr_multiplier: float = 2.0,
+        atr_multiplier: float = 1.5,
+        take_profit_multiplier: float = 3.0,
     ):
         super().__init__(
             name="TrendFollowing",
@@ -36,6 +37,7 @@ class TrendFollowingStrategy(Strategy):
                 "rsi_upper": rsi_upper,
                 "atr_period": atr_period,
                 "atr_multiplier": atr_multiplier,
+                "take_profit_multiplier": take_profit_multiplier,
             },
         )
         self.fast_ema_period = fast_ema
@@ -45,6 +47,7 @@ class TrendFollowingStrategy(Strategy):
         self.rsi_upper = rsi_upper
         self.atr_period = atr_period
         self.atr_multiplier = atr_multiplier
+        self.take_profit_multiplier = take_profit_multiplier
 
     def generate_signals(self, bars: List[Bar]) -> List[Signal]:
         if len(bars) < self.slow_ema_period + 1:
@@ -94,6 +97,7 @@ class TrendFollowingStrategy(Strategy):
 
                 if not was_trending:  # Fresh signal, not continuation
                     stop_loss = bar.close - (atr * self.atr_multiplier) if atr else bar.close * 0.97
+                    take_profit = bar.close + (atr * self.take_profit_multiplier) if atr else bar.close * 1.05
 
                     # Confidence based on factor strength
                     ema_separation = (ema_f - ema_s) / ema_s
@@ -119,6 +123,7 @@ class TrendFollowingStrategy(Strategy):
                             },
                             reason=f"Trend following: EMA{self.fast_ema_period} ({ema_f:.2f}) > EMA{self.slow_ema_period} ({ema_s:.2f}), MACD positive, RSI {rsi:.1f} in healthy range",
                             stop_loss=round(stop_loss, 2),
+                            take_profit=round(take_profit, 2),
                         )
                     )
                     position_open = "LONG"
@@ -129,6 +134,7 @@ class TrendFollowingStrategy(Strategy):
 
                 if not was_downtrending:  # Fresh signal, not continuation
                     stop_loss = bar.close + (atr * self.atr_multiplier) if atr else bar.close * 1.03
+                    take_profit = bar.close - (atr * self.take_profit_multiplier) if atr else bar.close * 0.95
 
                     # Confidence based on factor strength
                     ema_separation = (ema_s - ema_f) / ema_s
@@ -154,6 +160,7 @@ class TrendFollowingStrategy(Strategy):
                             },
                             reason=f"Bearish trend following: EMA{self.fast_ema_period} ({ema_f:.2f}) < EMA{self.slow_ema_period} ({ema_s:.2f}), MACD negative, RSI {rsi:.1f} in healthy downtrend range",
                             stop_loss=round(stop_loss, 2),
+                            take_profit=round(take_profit, 2),
                         )
                     )
                     position_open = "SHORT"
