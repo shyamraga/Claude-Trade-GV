@@ -172,7 +172,7 @@ class DashboardAPIHandler(SimpleHTTPRequestHandler):
             trades = [t.to_dict() for t in engine.trade_history]
             self._send_json({"trades": trades})
 
-        elif path == "/api/post-mortems":
+        elif path in ("/api/post-mortems", "/api/post_mortems"):
             limit = int(query.get("limit", [50])[0])
             pms = [pm.to_dict() for pm in engine.post_mortem_repo.get_recent_post_mortems(limit=limit)]
             total_count = len(engine.post_mortem_repo._cache)
