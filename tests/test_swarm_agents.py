@@ -102,6 +102,62 @@ class TestSubAgentManager(unittest.TestCase):
         self.assertEqual(telemetry["manager_id"], "agent-manager")
         self.assertEqual(telemetry["total_sub_agents"], 6)
         self.assertIn("trader-analyst", telemetry["agents"])
+        self.assertIn("scan_progress", telemetry)
+
+    def test_batch_scan_progress_lifecycle(self):
+        """Verify dynamic batch scan telemetry accurately calculates completion percentage and state."""
+        # 1. Initialize batch
+        self.manager.start_scan_batch(total_symbols=10, cycle_number=5)
+        prog = self.manager.scan_progress
+        self.assertTrue(prog.is_scanning)
+        self.assertEqual(prog.cycle_number, 5)
+        self.assertEqual(prog.total_symbols, 10)
+        self.assertEqual(prog.progress_pct, 0.0)
+
+        # 2. Update progress mid-scan
+        rep = self.manager.evaluate_symbol("NVDA", self.bars_bull)
+        self.manager.update_scan_progress(symbol="NVDA", evaluated_count=5, current_report=rep)
+        self.assertEqual(prog.evaluated_count, 5)
+        self.assertEqual(prog.current_symbol, "NVDA")
+        self.assertEqual(prog.progress_pct, 50.0)
+        self.assertIsNotNone(prog.top_swarm_setup)
+        self.assertEqual(prog.top_swarm_setup["symbol"], "NVDA")
+
+        # 3. Finish scan
+        self.manager.finish_scan_batch(next_cooldown_s=45)
+        self.assertFalse(prog.is_scanning)
+        self.assertEqual(prog.progress_pct, 100.0)
+        self.assertEqual(prog.next_scan_seconds, 45)
+
+    def test_peak_conviction_setup_retention(self):
+        """Ensure top conviction signal is preserved and not erased by subsequent neutral symbols."""
+        self.manager.start_scan_batch(total_symbols=2, cycle_number=1)
+
+        # High conviction symbol
+        rep_high = self.manager.evaluate_symbol("NVDA", self.bars_bull, context={"sentiment": "bullish"})
+        self.manager.update_scan_progress("NVDA", evaluated_count=1, current_report=rep_high)
+
+        # Neutral symbol
+        bars_neutral = create_sample_bars(35, 100.0, 0.0)
+        rep_neutral = self.manager.evaluate_symbol("FLAT", bars_neutral, context={"sentiment": "neutral"})
+        self.manager.update_scan_progress("FLAT", evaluated_count=2, current_report=rep_neutral)
+
+        self.manager.finish_scan_batch()
+
+        # Telemetry should retain NVDA as peak conviction setup
+        tele = self.manager.get_swarm_telemetry()
+        self.assertEqual(tele["scan_progress"]["top_swarm_setup"]["symbol"], "NVDA")
+        self.assertIn("top_signal", tele["agents"]["trader-analyst"])
+
+    def test_metals_evaluation(self):
+        """Verify precious metals (XAU/USD & XAG/USD) evaluate cleanly with valid metrics."""
+        rep_gold = self.manager.evaluate_symbol("XAU/USD", self.bars_bull)
+        self.assertEqual(rep_gold.symbol, "XAU/USD")
+        self.assertIn(rep_gold.action, [AgentAction.BUY, AgentAction.HOLD, AgentAction.SELL])
+
+        rep_silver = self.manager.evaluate_symbol("XAG/USD", self.bars_bull)
+        self.assertEqual(rep_silver.symbol, "XAG/USD")
+        self.assertIn(rep_silver.action, [AgentAction.BUY, AgentAction.HOLD, AgentAction.SELL])
 
 
 if __name__ == "__main__":

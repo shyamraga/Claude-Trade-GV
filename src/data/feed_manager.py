@@ -9,6 +9,19 @@ from src.data.yahoo_client import YahooDataClient
 
 logger = logging.getLogger("FeedManager")
 
+METALS_NORMALIZATION = {
+    "XAU/USD": "GC=F",
+    "XAU-USD": "GC=F",
+    "XAUUSD": "GC=F",
+    "XAU": "GC=F",
+    "GOLD": "GC=F",
+    "XAG/USD": "SI=F",
+    "XAG-USD": "SI=F",
+    "XAGUSD": "SI=F",
+    "XAG": "SI=F",
+    "SILVER": "SI=F",
+}
+
 CRYPTO_NORMALIZATION = {
     "BTC": "BTC-USD",
     "BITCOIN": "BTC-USD",
@@ -56,12 +69,18 @@ class FeedManager:
         """Fetch historical bars with in-memory caching and automatic fallback."""
         symbol = symbol.upper().strip()
 
-        # Normalize known crypto symbols to Yahoo -USD ticker
-        if "/" in symbol:
+        # Normalize metals and crypto symbols
+        if symbol in METALS_NORMALIZATION:
+            symbol = METALS_NORMALIZATION[symbol]
+        elif "/" in symbol:
             parts = symbol.split("/", 1)
             base = parts[0]
             quote = parts[1]
-            if quote in ("USDT", "USD", "USDC", "BUSD"):
+            if base in ("XAU", "GOLD"):
+                symbol = "GC=F"
+            elif base in ("XAG", "SILVER"):
+                symbol = "SI=F"
+            elif quote in ("USDT", "USD", "USDC", "BUSD"):
                 symbol = f"{base}-USD"
             else:
                 symbol = f"{base}-{quote}"
@@ -79,8 +98,8 @@ class FeedManager:
 
         bars: List[Bar] = []
 
-        # Crypto pairs (e.g. BTC-USD) and Indian equities (.NS, .BO) are retrieved directly from Yahoo
-        if "-USD" in symbol or "/" in symbol or symbol.endswith(".NS") or symbol.endswith(".BO") or ".NS" in symbol or ".BO" in symbol:
+        # Crypto pairs, precious metals (GC=F, SI=F), and Indian equities are retrieved directly from Yahoo
+        if symbol in ("GC=F", "SI=F") or "=F" in symbol or "-USD" in symbol or "/" in symbol or symbol.endswith(".NS") or symbol.endswith(".BO") or ".NS" in symbol or ".BO" in symbol:
             try:
                 bars = self.yahoo.get_bars(symbol, timeframe=timeframe, limit=limit)
             except Exception as e:
@@ -148,7 +167,9 @@ class FeedManager:
     def get_latest_bar(self, symbol: str) -> Optional[Bar]:
         """Fetch latest bar with fallback."""
         symbol = symbol.upper().strip()
-        if symbol.endswith(".NS") or symbol.endswith(".BO") or "-USD" in symbol:
+        if symbol in METALS_NORMALIZATION:
+            symbol = METALS_NORMALIZATION[symbol]
+        if symbol in ("GC=F", "SI=F") or "=F" in symbol or symbol.endswith(".NS") or symbol.endswith(".BO") or "-USD" in symbol or "/" in symbol:
             bars = self.yahoo.get_bars(symbol, timeframe=TimeFrame.M1, limit=1)
             return bars[-1] if bars else None
 
@@ -166,7 +187,9 @@ class FeedManager:
     def get_quote(self, symbol: str) -> Optional[Quote]:
         """Fetch latest quote with fallback."""
         symbol = symbol.upper().strip()
-        if symbol.endswith(".NS") or symbol.endswith(".BO") or "-USD" in symbol:
+        if symbol in METALS_NORMALIZATION:
+            symbol = METALS_NORMALIZATION[symbol]
+        if symbol in ("GC=F", "SI=F") or "=F" in symbol or symbol.endswith(".NS") or symbol.endswith(".BO") or "-USD" in symbol or "/" in symbol:
             return self.yahoo.get_latest_quote(symbol)
 
         if self.primary_provider == "alpaca" and self.alpaca:

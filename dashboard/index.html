@@ -184,6 +184,29 @@
             <span class="note-text text-emerald">Zero weekend/holiday downtime. Autonomous execution active.</span>
           </div>
         </div>
+
+        <!-- 4. PRECIOUS METALS (GOLD & SILVER) -->
+        <div class="radar-card" id="radarCardMetals">
+          <div class="radar-card-top">
+            <div class="radar-exchange-info">
+              <span class="exchange-region">PRECIOUS METALS</span>
+              <span class="exchange-tag">COMEX • CME GLOBEX • ET</span>
+            </div>
+            <div class="radar-status-pill open" id="radarPillMetals">
+              <span class="radar-status-dot"></span>
+              <span class="radar-status-text" id="radarStatusTextMetals">OPEN</span>
+            </div>
+          </div>
+          <div class="radar-clock-display mono" id="radarClockMetals">--:--:-- ET</div>
+          <div class="radar-session-schedule">
+            <span class="schedule-label">TRADING WINDOW:</span>
+            <span class="schedule-value mono text-gold">Sun 18:00 – Fri 17:00 ET (23h)</span>
+          </div>
+          <div class="radar-footer-note" id="radarNoteMetals">
+            <span class="note-icon">✨</span>
+            <span class="note-text text-gold" id="radarDetailMetals">Gold (XAU/USD) &amp; Silver (XAG/USD) continuous session</span>
+          </div>
+        </div>
       </div>
     </section>
 
@@ -302,6 +325,10 @@
           <div class="symbol-control-group">
             <div class="symbol-select-wrap">
               <select id="symbolSelect" class="styled-select">
+                <optgroup label="Precious Metals (CME Globex)">
+                  <option value="XAU/USD">XAU/USD (Gold COMEX GC=F)</option>
+                  <option value="XAG/USD">XAG/USD (Silver COMEX SI=F)</option>
+                </optgroup>
                 <optgroup label="Crypto (24/7 Continuous)">
                   <option value="BTC-USD">BTC-USD (Bitcoin)</option>
                   <option value="ETH-USD">ETH-USD (Ethereum)</option>
@@ -696,12 +723,54 @@
         </div>
       </section>
 
+      <!-- LIVE UNIVERSE BATCH SCANNING MONITOR -->
+      <section class="swarm-scan-monitor-card">
+        <div class="scan-monitor-header">
+          <div class="flex-row items-center gap-3">
+            <div class="scan-beacon">
+              <span class="scan-beacon-ping" id="scanBeaconPing"></span>
+              <span class="scan-beacon-dot" id="scanBeaconDot"></span>
+            </div>
+            <div>
+              <div class="flex-row items-center gap-2">
+                <span class="scan-title mono">UNIVERSE BATCH SCANNER</span>
+                <span class="scan-status-badge mono" id="scanStatusBadge">SCANNING BATCH</span>
+                <span class="scan-cycle-tag mono" id="scanCycleTag">CYCLE #1</span>
+              </div>
+              <div class="scan-target-text mono">
+                TARGET SYMBOL: <strong id="scanCurrentTarget" class="text-cyan">---</strong>
+                <span class="scan-divider">•</span>
+                <span id="scanElapsedText">0.0s elapsed</span>
+              </div>
+            </div>
+          </div>
+          <div class="scan-summary-right mono">
+            <div class="scan-counter">
+              <span class="scan-count-val" id="scanCountVal">0 / 0</span>
+              <span class="scan-count-lbl">SYMBOLS EVALUATED</span>
+            </div>
+            <div class="scan-countdown-box" id="scanCountdownBox">
+              <span class="countdown-lbl">NEXT SCAN IN</span>
+              <span class="countdown-val text-accent" id="scanNextCountdown">--s</span>
+            </div>
+          </div>
+        </div>
+        <!-- Dynamic Animated Progress Bar Strip -->
+        <div class="scan-progressbar-wrap">
+          <div class="scan-progressbar-fill" id="scanProgressFill" style="width: 0%"></div>
+        </div>
+        <div class="scan-progressbar-meta mono">
+          <span id="scanProgressPct">0.0% COMPLETE</span>
+          <span id="scanTopPickBanner" class="scan-top-pick-banner">TOP SWARM PICK: <strong class="text-gold">SCANNING UNIVERSE...</strong></span>
+        </div>
+      </section>
+
       <!-- AGENT HIERARCHY FLOW VISUALIZER -->
       <section class="swarm-hierarchy-flow">
         <div class="hierarchy-step">
           <div class="hierarchy-step-badge">INPUT</div>
           <div class="hierarchy-step-title">Universe Ingestion</div>
-          <div class="hierarchy-step-desc mono">35+ Crypto • NIFTY 50 • US Equities (Parallel Batch)</div>
+          <div class="hierarchy-step-desc mono">35+ Crypto • Precious Metals (XAU/XAG) • NIFTY 50 • US Equities</div>
         </div>
         <div class="hierarchy-connector">
           <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"></polyline></svg>
@@ -763,15 +832,20 @@
             </div>
             <div class="agent-signal-box">
               <div class="signal-header">
-                <span class="sig-lbl">LATEST VERDICT:</span>
+                <span class="sig-lbl">PEAK CONVICTION SETUP:</span>
                 <span class="sig-action-badge neutral mono" id="act-trader-timemachine">STANDBY</span>
               </div>
               <div class="confidence-bar-wrap">
                 <div class="confidence-bar-fill" id="confBar-trader-timemachine" style="width: 0%"></div>
               </div>
               <div class="confidence-label mono">
-                <span>CONFIDENCE</span>
+                <span>CONVICTION SCORE</span>
                 <strong id="confVal-trader-timemachine">0.0%</strong>
+              </div>
+              <div class="agent-live-eval-row mono" id="evalRow-trader-timemachine">
+                <span class="eval-lbl">SCANNING:</span>
+                <span class="eval-target" id="evalTarget-trader-timemachine">--</span>
+                <span class="eval-verdict" id="evalVerdict-trader-timemachine">--</span>
               </div>
             </div>
             <div class="agent-metrics-grid" id="metrics-trader-timemachine">
@@ -840,15 +914,20 @@
             </div>
             <div class="agent-signal-box">
               <div class="signal-header">
-                <span class="sig-lbl">LATEST VERDICT:</span>
+                <span class="sig-lbl">PEAK CONVICTION SETUP:</span>
                 <span class="sig-action-badge neutral mono" id="act-trader-analyst">STANDBY</span>
               </div>
               <div class="confidence-bar-wrap">
                 <div class="confidence-bar-fill" id="confBar-trader-analyst" style="width: 0%"></div>
               </div>
               <div class="confidence-label mono">
-                <span>CONFIDENCE</span>
+                <span>CONVICTION SCORE</span>
                 <strong id="confVal-trader-analyst">0.0%</strong>
+              </div>
+              <div class="agent-live-eval-row mono" id="evalRow-trader-analyst">
+                <span class="eval-lbl">SCANNING:</span>
+                <span class="eval-target" id="evalTarget-trader-analyst">--</span>
+                <span class="eval-verdict" id="evalVerdict-trader-analyst">--</span>
               </div>
             </div>
             <div class="agent-metrics-grid" id="metrics-trader-analyst">
@@ -919,15 +998,20 @@
             </div>
             <div class="agent-signal-box">
               <div class="signal-header">
-                <span class="sig-lbl">LATEST VERDICT:</span>
+                <span class="sig-lbl">PEAK CONVICTION SETUP:</span>
                 <span class="sig-action-badge neutral mono" id="act-trader-entry">STANDBY</span>
               </div>
               <div class="confidence-bar-wrap">
                 <div class="confidence-bar-fill" id="confBar-trader-entry" style="width: 0%"></div>
               </div>
               <div class="confidence-label mono">
-                <span>CONFIDENCE</span>
+                <span>CONVICTION SCORE</span>
                 <strong id="confVal-trader-entry">0.0%</strong>
+              </div>
+              <div class="agent-live-eval-row mono" id="evalRow-trader-entry">
+                <span class="eval-lbl">SCANNING:</span>
+                <span class="eval-target" id="evalTarget-trader-entry">--</span>
+                <span class="eval-verdict" id="evalVerdict-trader-entry">--</span>
               </div>
             </div>
             <div class="agent-metrics-grid" id="metrics-trader-entry">
@@ -994,15 +1078,20 @@
             </div>
             <div class="agent-signal-box">
               <div class="signal-header">
-                <span class="sig-lbl">LATEST VERDICT:</span>
+                <span class="sig-lbl">PEAK CONVICTION SETUP:</span>
                 <span class="sig-action-badge neutral mono" id="act-trader-exit">STANDBY</span>
               </div>
               <div class="confidence-bar-wrap">
                 <div class="confidence-bar-fill" id="confBar-trader-exit" style="width: 0%"></div>
               </div>
               <div class="confidence-label mono">
-                <span>CONFIDENCE</span>
+                <span>CONVICTION SCORE</span>
                 <strong id="confVal-trader-exit">0.0%</strong>
+              </div>
+              <div class="agent-live-eval-row mono" id="evalRow-trader-exit">
+                <span class="eval-lbl">SCANNING:</span>
+                <span class="eval-target" id="evalTarget-trader-exit">--</span>
+                <span class="eval-verdict" id="evalVerdict-trader-exit">--</span>
               </div>
             </div>
             <div class="agent-metrics-grid" id="metrics-trader-exit">
@@ -1071,15 +1160,20 @@
             </div>
             <div class="agent-signal-box">
               <div class="signal-header">
-                <span class="sig-lbl">LATEST VERDICT:</span>
+                <span class="sig-lbl">PEAK CONVICTION SETUP:</span>
                 <span class="sig-action-badge neutral mono" id="act-trader-news">STANDBY</span>
               </div>
               <div class="confidence-bar-wrap">
                 <div class="confidence-bar-fill" id="confBar-trader-news" style="width: 0%"></div>
               </div>
               <div class="confidence-label mono">
-                <span>CONFIDENCE</span>
+                <span>CONVICTION SCORE</span>
                 <strong id="confVal-trader-news">0.0%</strong>
+              </div>
+              <div class="agent-live-eval-row mono" id="evalRow-trader-news">
+                <span class="eval-lbl">SCANNING:</span>
+                <span class="eval-target" id="evalTarget-trader-news">--</span>
+                <span class="eval-verdict" id="evalVerdict-trader-news">--</span>
               </div>
             </div>
             <div class="agent-metrics-grid" id="metrics-trader-news">
@@ -1148,15 +1242,20 @@
             </div>
             <div class="agent-signal-box">
               <div class="signal-header">
-                <span class="sig-lbl">LATEST VERDICT:</span>
+                <span class="sig-lbl">PEAK CONVICTION SETUP:</span>
                 <span class="sig-action-badge neutral mono" id="act-trader-pelosi">STANDBY</span>
               </div>
               <div class="confidence-bar-wrap">
                 <div class="confidence-bar-fill" id="confBar-trader-pelosi" style="width: 0%"></div>
               </div>
               <div class="confidence-label mono">
-                <span>CONFIDENCE</span>
+                <span>CONVICTION SCORE</span>
                 <strong id="confVal-trader-pelosi">0.0%</strong>
+              </div>
+              <div class="agent-live-eval-row mono" id="evalRow-trader-pelosi">
+                <span class="eval-lbl">SCANNING:</span>
+                <span class="eval-target" id="evalTarget-trader-pelosi">--</span>
+                <span class="eval-verdict" id="evalVerdict-trader-pelosi">--</span>
               </div>
             </div>
             <div class="agent-metrics-grid" id="metrics-trader-pelosi">

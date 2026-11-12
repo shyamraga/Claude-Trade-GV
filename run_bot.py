@@ -53,6 +53,11 @@ CRYPTO_CONFIDENCE_THRESHOLD = 0.75 # Lowered to 0.75 to enable high-conviction c
 MAX_CONCURRENT_POSITIONS = 10      # Maximum simultaneous open live positions in portfolio
 MAX_EXECUTES_PER_CYCLE = 10        # Top best setups to execute per scan cycle
 
+# Precious Metals Pairs (Gold & Silver spot futures) - CME Globex 23h/day
+METALS_SYMBOLS = [
+    "XAU/USD", "XAG/USD"
+]
+
 # 24/7 Global Crypto Pairs (Comprehensive liquid crypto universe)
 CRYPTO_SYMBOLS = [
     "BTC-USD", "ETH-USD", "SOL-USD", "BNB-USD", "XRP-USD",
@@ -82,10 +87,16 @@ INDIAN_SYMBOLS = [
 def calculate_trade_quantity(symbol: str, price: float, confidence: float, is_crypto: bool) -> int:
     """
     Level 4 Sizing: Calculate adaptive, aggressive position size based on asset type, price, and confidence.
-    Allocates ~$4,500 - $6,500 notional for US equities, ₹100,000 for Indian equities, and proportional crypto.
+    Allocates ~$4,500 - $6,500 notional for US equities, ₹100,000 for Indian equities, and proportional crypto/metals.
     """
     if price <= 0:
         return 10
+
+    # Precious Metals (Gold ~$4000/oz, Silver ~$50/oz)
+    if "XAU" in symbol or symbol == "GC=F":
+        return max(1, min(3, int(5000.0 / price)))  # 1-2 oz Gold (~$4,000-$8,000)
+    elif "XAG" in symbol or symbol == "SI=F":
+        return max(25, min(200, int(5000.0 / price)))  # ~100 oz Silver (~$5,000)
 
     if is_crypto:
         if price > 1000.0:     # BTC, ETH
@@ -111,6 +122,7 @@ def calculate_trade_quantity(symbol: str, price: float, confidence: float, is_cr
 def get_universe(broker: Optional[AlpacaBroker] = None) -> List[str]:
     """
     Retrieve unified global multi-market universe:
+    - Precious Metals (Gold XAU/USD, Silver XAG/USD)
     - 24/7 Comprehensive Crypto pairs (BTC, ETH, SOL, BNB, XRP, AVAX, etc.)
     - NIFTY 50 Bluechip Indian Equities (Reliance, TCS, Infosys, HDFC, etc.)
     - Broad Tradable US Equities & Growth Leaders
@@ -136,8 +148,8 @@ def get_universe(broker: Optional[AlpacaBroker] = None) -> List[str]:
     except Exception as e:
         logger.warning("Could not fetch dynamic Alpaca universe (%s). Using default broad US universe.", e)
 
-    # Combine 24/7 Crypto + Indian Equities + US Equities
-    return CRYPTO_SYMBOLS + INDIAN_SYMBOLS + us_equities
+    # Combine Precious Metals + 24/7 Crypto + Indian Equities + US Equities
+    return METALS_SYMBOLS + CRYPTO_SYMBOLS + INDIAN_SYMBOLS + us_equities
 
 
 def build_services(initial_cash: float = 100_000.0):
@@ -177,6 +189,7 @@ def trading_cycle(
     feed: FeedManager,
     ai: AIMarketIntelligence,
     sub_agent_manager: Optional[SubAgentManager] = None,
+    interval: int = 45,
 ):
     """
     Execute autonomous trading cycle orchestrated through the Multi-Agent Swarm Hierarchy:
@@ -187,9 +200,12 @@ def trading_cycle(
       Level 4: Risk Guardian & Memory Learning Agent (circuit breaker & adaptive sizing)
       Level 5: Execution Router & Trailing Order Agent (order dispatch & trailing profit locks)
     """
+    cycle_num = getattr(engine, "_cycle_count", 0) + 1
+    setattr(engine, "_cycle_count", cycle_num)
+
     time_str = datetime.now().strftime("%H:%M:%S")
-    logger.info("=== [SWARM HIERARCHY] Trading Cycle Started === %s", time_str)
-    DashboardAPIHandler.log_event(f"=== [SWARM HIERARCHY] Trading Cycle Started === {time_str}", level="CYCLE")
+    logger.info("=== [SWARM HIERARCHY] Trading Cycle #%d Started === %s", cycle_num, time_str)
+    DashboardAPIHandler.log_event(f"=== [SWARM HIERARCHY] Trading Cycle #{cycle_num} Started === {time_str}", level="CYCLE")
 
     # -------------------------------------------------------------------------
     # LEVEL 1: Market Hours & Time-Zone Session Filter
@@ -218,12 +234,15 @@ def trading_cycle(
     logger.info(batch_log)
     DashboardAPIHandler.log_event(batch_log, level="CYCLE")
 
+    if sub_agent_manager:
+        sub_agent_manager.start_scan_batch(total_symbols=len(bars_batch), cycle_number=cycle_num)
+
     candidate_setups: List[Dict[str, Any]] = []
 
     # -------------------------------------------------------------------------
     # LEVEL 1 & 2 & 3: Market Scan, Strategy Ensemble, & Multi-Agent Swarm
     # -------------------------------------------------------------------------
-    for symbol, bars in bars_batch.items():
+    for idx, (symbol, bars) in enumerate(bars_batch.items(), start=1):
         try:
             if len(bars) < 25:
                 continue
@@ -332,6 +351,11 @@ def trading_cycle(
                     current_position=open_pos,
                     context={"sentiment": sentiment_label},
                 )
+                sub_agent_manager.update_scan_progress(
+                    symbol=symbol,
+                    evaluated_count=idx,
+                    current_report=swarm_report,
+                )
                 agreeing_count = sum(1 for s in swarm_report.agent_signals.values() if s.action == swarm_report.action)
                 swarm_log = (
                     f"  [SWARM-6]  {symbol} Swarm Verdict: {swarm_report.action.value} "
@@ -402,7 +426,10 @@ def trading_cycle(
 
         except Exception as exc:
             logger.debug("Error scanning %s: %s", symbol, exc)
-            logger.debug("Error scanning %s: %s", symbol, exc)
+
+    # Finalize batch scan telemetry once universe loop finishes
+    if sub_agent_manager:
+        sub_agent_manager.finish_scan_batch(next_cooldown_s=interval)
 
     if not candidate_setups:
         logger.info("No fresh high-confidence setups found across market this cycle.")
@@ -552,7 +579,7 @@ def main():
 
     try:
         while True:
-            trading_cycle(symbols, engine, strategy_engine, feed, ai, sub_agent_manager)
+            trading_cycle(symbols, engine, strategy_engine, feed, ai, sub_agent_manager, interval=args.interval)
             if args.once:
                 logger.info("Single scan run completed (--once specified).")
                 break

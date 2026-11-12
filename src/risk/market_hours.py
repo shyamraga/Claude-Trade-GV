@@ -26,6 +26,7 @@ class MarketType(str, Enum):
     US_EQUITY = "US_EQUITY"
     INDIA_EQUITY = "INDIA_EQUITY"
     CRYPTO = "CRYPTO"
+    METALS = "METALS"
     UNKNOWN = "UNKNOWN"
 
 
@@ -118,6 +119,14 @@ class MarketHoursManager:
     def get_market_type(cls, symbol: str) -> MarketType:
         """Classify symbol into its corresponding financial market."""
         sym = symbol.upper().strip()
+        # Precious Metals (Gold / Silver)
+        if (
+            sym in ("XAU/USD", "XAG/USD", "XAU-USD", "XAG-USD", "XAUUSD", "XAGUSD", "XAU", "XAG", "GC=F", "SI=F", "GOLD", "SILVER")
+            or sym.startswith("XAU")
+            or sym.startswith("XAG")
+            or "=F" in sym
+        ):
+            return MarketType.METALS
         if "-USD" in sym or "/USD" in sym or sym.endswith("USDT") or sym in (
             "BTC-USD", "ETH-USD", "SOL-USD", "AVAX-USD", "DOGE-USD", "BNB-USD", "XRP-USD", "ADA-USD"
         ):
@@ -345,11 +354,49 @@ class MarketHoursManager:
         return (True, "Crypto market operates 24/7 continuously.")
 
     @classmethod
+    def is_metals_market_open(cls, dt: Optional[datetime] = None) -> Tuple[bool, str]:
+        """
+        Check if CME Globex Precious Metals (Gold GC=F / Silver SI=F) is open.
+        Trading Hours:
+        - Sunday 18:00 ET to Friday 17:00 ET.
+        - Daily 60-min maintenance pause from 17:00 to 18:00 ET (Mon-Thu).
+        - Closed Friday 17:00 ET through Sunday 18:00 ET.
+        """
+        now_utc = dt or datetime.now(TZ_UTC)
+        now_us = now_utc.astimezone(TZ_US)
+        weekday = now_us.weekday()  # 0=Mon, 4=Fri, 5=Sat, 6=Sun
+        t = now_us.time()
+
+        # Saturday: completely closed
+        if weekday == 5:
+            return (False, f"Metals market (CME/Globex Gold & Silver) is CLOSED on Saturdays ({now_us.strftime('%H:%M')} ET). Opens Sunday 18:00 ET.")
+
+        # Sunday: closed before 18:00 ET, opens at 18:00 ET
+        if weekday == 6:
+            if t < time(18, 0):
+                return (False, f"Metals market is CLOSED on Sundays until 18:00 ET (Current: {now_us.strftime('%H:%M:%S')} ET).")
+            return (True, f"Metals market is OPEN (Sunday evening session, {now_us.strftime('%H:%M:%S')} ET).")
+
+        # Friday: closes at 17:00 ET
+        if weekday == 4:
+            if t >= time(17, 0):
+                return (False, f"Metals market CLOSED for the weekend at 17:00 ET (Current: {now_us.strftime('%H:%M:%S')} ET). Opens Sunday 18:00 ET.")
+            return (True, f"Metals market is OPEN (Friday session, {now_us.strftime('%H:%M:%S')} ET). Closes at 17:00 ET.")
+
+        # Mon-Thu: daily maintenance break 17:00 to 18:00 ET
+        if time(17, 0) <= t < time(18, 0):
+            return (False, f"Metals market daily maintenance pause (17:00-18:00 ET). Reopens at 18:00 ET (Current: {now_us.strftime('%H:%M:%S')} ET).")
+
+        return (True, f"Metals market is OPEN (CME/Globex Gold & Silver: {now_us.strftime('%H:%M:%S')} ET).")
+
+    @classmethod
     def is_market_open(cls, symbol: str, dt: Optional[datetime] = None) -> Tuple[bool, str]:
         """Determine whether the market for a specific symbol is open right now."""
         mtype = cls.get_market_type(symbol)
         if mtype == MarketType.CRYPTO:
             return cls.is_crypto_market_open()
+        elif mtype == MarketType.METALS:
+            return cls.is_metals_market_open(dt)
         elif mtype == MarketType.INDIA_EQUITY:
             return cls.is_indian_market_open(dt)
         else:
@@ -360,7 +407,7 @@ class MarketHoursManager:
         """
         Filter a list of multi-market symbols, returning ONLY those whose market is currently open.
         Guarantees that during Indian hours, Indian stocks trade; during US hours, US stocks trade;
-        and Crypto trades 24/7.
+        Metals trade 23h/day Mon-Fri; and Crypto trades 24/7.
         """
         open_symbols: List[str] = []
         for sym in symbols:
@@ -371,11 +418,12 @@ class MarketHoursManager:
 
     @classmethod
     def get_open_markets_summary(cls, dt: Optional[datetime] = None) -> Dict[str, Any]:
-        """Provide a real-time status summary across all three market domains."""
+        """Provide a real-time status summary across all market domains."""
         now_utc = dt or datetime.now(TZ_UTC)
         us_open, us_msg = cls.is_us_market_open(now_utc)
         in_open, in_msg = cls.is_indian_market_open(now_utc)
         crypto_open, crypto_msg = cls.is_crypto_market_open()
+        metals_open, metals_msg = cls.is_metals_market_open(now_utc)
 
         now_us = now_utc.astimezone(TZ_US)
         now_in = now_utc.astimezone(TZ_INDIA)
@@ -395,5 +443,10 @@ class MarketHoursManager:
             "crypto_market": {
                 "open": crypto_open,
                 "status": crypto_msg,
+            },
+            "metals_market": {
+                "open": metals_open,
+                "current_time": now_us.strftime("%Y-%m-%d %H:%M:%S %Z"),
+                "status": metals_msg,
             },
         }

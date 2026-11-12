@@ -59,6 +59,45 @@ class SwarmReport:
         }
 
 
+@dataclass
+class ScanProgress:
+    """Tracks real-time batch scan progress across the market universe."""
+    is_scanning: bool = False
+    cycle_number: int = 0
+    evaluated_count: int = 0
+    total_symbols: int = 0
+    progress_pct: float = 0.0
+    current_symbol: str = "IDLE"
+    current_action: str = "IDLE"
+    cycle_start_time: float = 0.0
+    cycle_finish_time: float = 0.0
+    next_scan_seconds: int = 0
+    top_swarm_setup: Optional[Dict[str, Any]] = None
+    top_agent_setups: Dict[str, Dict[str, Any]] = field(default_factory=dict)
+
+    def to_dict(self) -> Dict[str, Any]:
+        elapsed = 0.0
+        remaining_s = 0
+        now = time.time()
+        if self.is_scanning and self.cycle_start_time > 0:
+            elapsed = round(now - self.cycle_start_time, 1)
+        elif not self.is_scanning and self.cycle_finish_time > 0:
+            past = int(now - self.cycle_finish_time)
+            remaining_s = max(0, self.next_scan_seconds - past)
+
+        return {
+            "is_scanning": self.is_scanning,
+            "cycle_number": self.cycle_number,
+            "evaluated_count": self.evaluated_count,
+            "total_symbols": self.total_symbols,
+            "progress_pct": round(self.progress_pct, 1),
+            "current_symbol": self.current_symbol,
+            "elapsed_seconds": elapsed,
+            "next_scan_seconds": remaining_s,
+            "top_swarm_setup": self.top_swarm_setup,
+        }
+
+
 class SubAgentManager:
     """
     Manager Agent overseeing the 6 specialized sub-agents.
@@ -77,6 +116,62 @@ class SubAgentManager:
         }
         self.last_reports: Dict[str, SwarmReport] = {}
         self.total_swarm_runs = 0
+        self.scan_progress = ScanProgress()
+
+    def start_scan_batch(self, total_symbols: int, cycle_number: int = 0) -> None:
+        """Initialize batch scanning telemetry for a new universe scan cycle."""
+        self.scan_progress.is_scanning = True
+        self.scan_progress.cycle_number = cycle_number
+        self.scan_progress.evaluated_count = 0
+        self.scan_progress.total_symbols = max(1, total_symbols)
+        self.scan_progress.progress_pct = 0.0
+        self.scan_progress.cycle_start_time = time.time()
+        self.scan_progress.current_symbol = "STARTING BATCH..."
+        self.scan_progress.top_swarm_setup = None
+        self.scan_progress.top_agent_setups = {}
+
+    def update_scan_progress(
+        self,
+        symbol: str,
+        evaluated_count: int,
+        current_report: Optional[SwarmReport] = None,
+    ) -> None:
+        """Update live scanning cursor, calculate completion percentage, and track top setups."""
+        self.scan_progress.is_scanning = True
+        self.scan_progress.evaluated_count = evaluated_count
+        self.scan_progress.current_symbol = symbol
+        if self.scan_progress.total_symbols > 0:
+            pct = (evaluated_count / self.scan_progress.total_symbols) * 100.0
+            self.scan_progress.progress_pct = min(100.0, pct)
+
+        if current_report:
+            # Check overall swarm peak setup
+            if current_report.action in (AgentAction.BUY, AgentAction.SELL):
+                curr_top = self.scan_progress.top_swarm_setup
+                if not curr_top or current_report.confidence > curr_top.get("confidence", 0.0):
+                    self.scan_progress.top_swarm_setup = {
+                        "symbol": symbol,
+                        "action": current_report.action.value,
+                        "confidence": current_report.confidence,
+                        "consensus_strength": current_report.consensus_strength,
+                        "summary": current_report.executive_summary,
+                    }
+
+            # Track top setup per sub-agent across the scan
+            for aid, sig in current_report.agent_signals.items():
+                if sig.action in (AgentAction.BUY, AgentAction.SELL):
+                    existing = self.scan_progress.top_agent_setups.get(aid)
+                    if not existing or sig.confidence > existing.get("confidence", 0.0):
+                        self.scan_progress.top_agent_setups[aid] = sig.to_dict()
+
+    def finish_scan_batch(self, next_cooldown_s: int = 20) -> None:
+        """Mark universe scan cycle complete and arm next cycle countdown."""
+        self.scan_progress.is_scanning = False
+        self.scan_progress.progress_pct = 100.0
+        self.scan_progress.evaluated_count = self.scan_progress.total_symbols
+        self.scan_progress.cycle_finish_time = time.time()
+        self.scan_progress.next_scan_seconds = next_cooldown_s
+        self.scan_progress.current_symbol = "AWAITING NEXT CYCLE"
 
     def evaluate_symbol(
         self,
@@ -212,15 +307,18 @@ class SubAgentManager:
         from src.data.models import Bar
 
         sample_symbols = [
-            ("BTC-USD", 74250.0, "bullish"),
+            ("XAU/USD", 3995.0, "bullish"),
+            ("BTC-USD", 74500.0, "bullish"),
             ("ETH-USD", 2820.0, "bullish"),
             ("NVDA", 146.50, "bullish"),
             ("SOL-USD", 182.40, "bearish"),
+            ("XAG/USD", 51.80, "bullish"),
             ("SPY", 592.00, "neutral"),
         ]
 
         now = datetime.now(timezone.utc)
-        for sym, anchor_px, sent in sample_symbols:
+        self.start_scan_batch(total_symbols=len(sample_symbols), cycle_number=1)
+        for idx, (sym, anchor_px, sent) in enumerate(sample_symbols, start=1):
             bars: List[Bar] = []
             px = anchor_px
             for i in range(35):
@@ -241,21 +339,30 @@ class SubAgentManager:
                 ))
                 px = c
 
-            self.evaluate_symbol(sym, bars, context={"sentiment": sent})
+            rep = self.evaluate_symbol(sym, bars, context={"sentiment": sent})
+            self.update_scan_progress(sym, idx, current_report=rep)
+        self.finish_scan_batch(next_cooldown_s=30)
 
     def get_swarm_telemetry(self) -> Dict[str, Any]:
         """Return real-time operational status for all managed sub-agents."""
         if self.total_swarm_runs == 0:
             self.warmup_telemetry()
 
+        agents_summary = {}
+        for aid, agent in self.agents.items():
+            summary = agent.get_status_summary()
+            summary["is_evaluating"] = self.scan_progress.is_scanning
+            top_sig = self.scan_progress.top_agent_setups.get(aid)
+            summary["top_signal"] = top_sig or summary.get("last_signal")
+            agents_summary[aid] = summary
+
         return {
             "manager_id": self.manager_id,
             "status": "ACTIVE",
             "total_sub_agents": len(self.agents),
             "total_swarm_runs": self.total_swarm_runs,
-            "agents": {
-                aid: agent.get_status_summary() for aid, agent in self.agents.items()
-            },
+            "scan_progress": self.scan_progress.to_dict(),
+            "agents": agents_summary,
             "recent_symbols_evaluated": list(self.last_reports.keys())[-10:],
             "recent_reports": [rep.to_dict() for rep in list(self.last_reports.values())[-6:]],
         }

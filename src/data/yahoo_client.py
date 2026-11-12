@@ -32,8 +32,14 @@ class YahooDataClient:
     def get_bars(self, symbol: str, timeframe: TimeFrame = TimeFrame.M15, limit: int = 100) -> List[Bar]:
         """Fetch historical bars from Yahoo Finance."""
         symbol = symbol.upper().strip()
+
+        # Normalize metals symbols to Yahoo commodity futures tickers
+        if symbol in ("XAU/USD", "XAU-USD", "XAUUSD", "XAU", "GOLD"):
+            symbol = "GC=F"
+        elif symbol in ("XAG/USD", "XAG-USD", "XAGUSD", "XAG", "SILVER"):
+            symbol = "SI=F"
         # Normalize crypto slash notation (e.g. BTC/USDT, ETH/USD) to Yahoo ticker format
-        if "/" in symbol:
+        elif "/" in symbol:
             parts = symbol.split("/", 1)
             base = parts[0]
             quote = parts[1]

@@ -1066,38 +1066,165 @@ async function fetchAgentSwarmData() {
       elRuns.textContent = (data.total_swarm_runs || 0).toLocaleString();
     }
 
-    // 2. Individual Sub-Agents
+    // 2. Dynamic Universe Batch Scanner Telemetry
+    const scan = data.scan_progress || {};
+    const isScanning = Boolean(scan.is_scanning);
+
+    // 2a. Beacon Animation
+    const beaconPing = document.getElementById('scanBeaconPing');
+    const beaconDot = document.getElementById('scanBeaconDot');
+    if (beaconPing) {
+      if (isScanning) {
+        beaconPing.style.display = 'block';
+        beaconPing.classList.add('active');
+      } else {
+        beaconPing.classList.remove('active');
+      }
+    }
+    if (beaconDot) {
+      beaconDot.style.background = isScanning ? '#00e5ff' : '#26A69A';
+    }
+
+    // 2b. Status Badge & Cycle Tag
+    const scanStatusBadge = document.getElementById('scanStatusBadge');
+    if (scanStatusBadge) {
+      if (isScanning) {
+        scanStatusBadge.textContent = 'SCANNING BATCH';
+        scanStatusBadge.className = 'scan-status-badge mono scanning';
+      } else {
+        scanStatusBadge.textContent = 'CYCLE COMPLETED - STANDBY';
+        scanStatusBadge.className = 'scan-status-badge mono idle';
+      }
+    }
+
+    const scanCycleTag = document.getElementById('scanCycleTag');
+    if (scanCycleTag) {
+      scanCycleTag.textContent = `CYCLE #${scan.cycle_number || 1}`;
+    }
+
+    // 2c. Target Symbol & Elapsed
+    const scanCurrentTarget = document.getElementById('scanCurrentTarget');
+    if (scanCurrentTarget) {
+      const curSym = scan.current_symbol || (isScanning ? 'EVALUATING...' : 'IDLE');
+      scanCurrentTarget.textContent = curSym;
+      scanCurrentTarget.className = isScanning ? 'text-cyan scanning-pulse' : 'text-cyan';
+    }
+
+    const scanElapsedText = document.getElementById('scanElapsedText');
+    if (scanElapsedText) {
+      const elapsed = typeof scan.elapsed_seconds === 'number' ? scan.elapsed_seconds : 0.0;
+      scanElapsedText.textContent = `${elapsed.toFixed(1)}s elapsed`;
+    }
+
+    // 2d. Evaluated Count & Countdown
+    const scanCountVal = document.getElementById('scanCountVal');
+    if (scanCountVal) {
+      const evalCount = scan.evaluated_count || 0;
+      const totalSyms = scan.total_symbols || 0;
+      scanCountVal.textContent = `${evalCount} / ${totalSyms}`;
+    }
+
+    const scanNextCountdown = document.getElementById('scanNextCountdown');
+    if (scanNextCountdown) {
+      if (isScanning) {
+        scanNextCountdown.textContent = 'ACTIVE';
+        scanNextCountdown.className = 'countdown-val text-cyan';
+      } else {
+        const nextSec = scan.next_scan_seconds !== undefined ? scan.next_scan_seconds : '--';
+        scanNextCountdown.textContent = `${nextSec}s`;
+        scanNextCountdown.className = 'countdown-val text-accent';
+      }
+    }
+
+    // 2e. Animated Progress Bar Strip & Percentage
+    const scanProgressFill = document.getElementById('scanProgressFill');
+    const scanProgressPct = document.getElementById('scanProgressPct');
+    const pct = typeof scan.progress_pct === 'number' ? Math.min(100, Math.max(0, scan.progress_pct)) : 0;
+
+    if (scanProgressFill) {
+      scanProgressFill.style.width = `${pct}%`;
+      if (isScanning) {
+        scanProgressFill.classList.add('animating');
+      } else {
+        scanProgressFill.classList.remove('animating');
+      }
+    }
+
+    if (scanProgressPct) {
+      scanProgressPct.textContent = `${pct.toFixed(1)}% COMPLETE`;
+    }
+
+    // 2f. Top Swarm Pick Banner
+    const scanTopPickBanner = document.getElementById('scanTopPickBanner');
+    if (scanTopPickBanner) {
+      if (scan.top_swarm_setup && scan.top_swarm_setup.symbol) {
+        const pick = scan.top_swarm_setup;
+        const conf = Math.round((pick.confidence || 0) * 100);
+        const act = (pick.action || 'HOLD').toUpperCase();
+        scanTopPickBanner.innerHTML = `TOP SWARM PICK: <strong class="text-gold">${pick.symbol}</strong> <span class="sig-action-badge ${act} mono">${act}</span> <span class="mono text-cyan">${conf}% CONF</span>`;
+      } else {
+        scanTopPickBanner.innerHTML = `TOP SWARM PICK: <strong class="text-gold">${isScanning ? 'SCANNING UNIVERSE...' : 'AWAITING NEXT CYCLE'}</strong>`;
+      }
+    }
+
+    // 3. Individual Sub-Agents
     const agents = data.agents || {};
     let totalLatency = 0;
     let latencyCount = 0;
 
     for (const [aid, info] of Object.entries(agents)) {
-      const sig = info.last_signal || (info.activity_log && info.activity_log.length > 0 ? info.activity_log[0] : null);
+      // Prioritize top conviction signal across the universe batch
+      const peakSig = info.top_signal || info.last_signal || (info.activity_log && info.activity_log.length > 0 ? info.activity_log[0] : null);
+      const liveSig = info.last_signal || peakSig;
+
       const elLat = document.getElementById(`lat-${aid}`);
       const elAct = document.getElementById(`act-${aid}`);
       const elBar = document.getElementById(`confBar-${aid}`);
       const elConf = document.getElementById(`confVal-${aid}`);
       const elReason = document.getElementById(`reason-${aid}`);
+      const elEvalTarget = document.getElementById(`evalTarget-${aid}`);
+      const elEvalVerdict = document.getElementById(`evalVerdict-${aid}`);
+      const elEvalRow = document.getElementById(`evalRow-${aid}`);
 
-      if (sig) {
-        if (sig.latency_ms !== undefined) {
-          totalLatency += sig.latency_ms;
-          latencyCount++;
-          if (elLat) elLat.textContent = `${Number(sig.latency_ms).toFixed(2)} ms`;
+      if (liveSig && liveSig.latency_ms !== undefined) {
+        totalLatency += liveSig.latency_ms;
+        latencyCount++;
+        if (elLat) elLat.textContent = `${Number(liveSig.latency_ms).toFixed(2)} ms`;
+      }
+
+      // Live Symbol Scanning Stream per Sub-Agent Card
+      if (liveSig) {
+        if (elEvalTarget) {
+          elEvalTarget.textContent = liveSig.symbol || '--';
         }
+        if (elEvalVerdict) {
+          const act = (liveSig.action || 'HOLD').toUpperCase();
+          elEvalVerdict.textContent = act;
+          elEvalVerdict.className = `eval-verdict ${act}`;
+        }
+        if (elEvalRow) {
+          if (isScanning || info.is_evaluating) {
+            elEvalRow.classList.add('scanning');
+          } else {
+            elEvalRow.classList.remove('scanning');
+          }
+        }
+      }
 
+      // Peak Conviction Setup Card Display
+      if (peakSig) {
         if (elAct) {
-          const act = sig.action || 'HOLD';
-          elAct.textContent = `${sig.symbol ? sig.symbol + ': ' : ''}${act}`;
+          const act = (peakSig.action || 'HOLD').toUpperCase();
+          elAct.textContent = `${peakSig.symbol ? peakSig.symbol + ': ' : ''}${act}`;
           elAct.className = `sig-action-badge mono ${act}`;
         }
 
-        const confPct = Math.round((sig.confidence || 0) * 100);
+        const confPct = Math.round((peakSig.confidence || 0) * 100);
         if (elBar) elBar.style.width = `${confPct}%`;
         if (elConf) elConf.textContent = `${confPct}%`;
-        if (elReason && sig.reason) elReason.textContent = sig.reason;
+        if (elReason && peakSig.reason) elReason.textContent = peakSig.reason;
 
-        const m = sig.metrics || {};
+        const m = peakSig.metrics || (liveSig ? liveSig.metrics : {}) || {};
         if (aid === 'trader-timemachine') {
           const elEff = document.getElementById('mEff-trader-timemachine');
           const elReg = document.getElementById('mRegime-trader-timemachine');
@@ -1293,6 +1420,73 @@ function updateTimezoneRadarClocks() {
     const elCrypto = document.getElementById('radarClockCrypto');
     if (elCrypto) elCrypto.textContent = `${utcTimeStr} UTC`;
   } catch (e) {}
+
+  // 5. Metals Market Clock (America/New_York - CME Globex)
+  try {
+    const metalsTimeStr = now.toLocaleTimeString('en-US', {
+      timeZone: 'America/New_York',
+      hour12: false,
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+    });
+    const elMetals = document.getElementById('radarClockMetals');
+    if (elMetals) elMetals.textContent = `${metalsTimeStr} ET`;
+
+    // Client-side session fallback if authoritative summary not yet loaded
+    if (!state.hasAuthoritativeMarketSummary) {
+      const pill = document.getElementById('radarPillMetals');
+      const text = document.getElementById('radarStatusTextMetals');
+      const card = document.getElementById('radarCardMetals');
+      const detail = document.getElementById('radarDetailMetals');
+
+      const usDate = new Date(now.toLocaleString('en-US', { timeZone: 'America/New_York' }));
+      const day = usDate.getDay(); // 0=Sun, 5=Fri, 6=Sat
+      const hrs = usDate.getHours();
+      const mins = usDate.getMinutes();
+      const totalM = hrs * 60 + mins;
+
+      let isOpen = false;
+      let statusDesc = '';
+
+      if (day === 6) {
+        isOpen = false;
+        statusDesc = 'Metals market is CLOSED on Saturdays. Opens Sunday 18:00 ET.';
+      } else if (day === 0) {
+        if (totalM < 18 * 60) {
+          isOpen = false;
+          statusDesc = 'Metals market is CLOSED until Sunday 18:00 ET.';
+        } else {
+          isOpen = true;
+          statusDesc = 'Metals market is OPEN (Sunday evening session).';
+        }
+      } else if (day === 5) {
+        if (totalM >= 17 * 60) {
+          isOpen = false;
+          statusDesc = 'Metals market CLOSED for weekend at 17:00 ET.';
+        } else {
+          isOpen = true;
+          statusDesc = 'Metals market is OPEN (Friday session). Closes 17:00 ET.';
+        }
+      } else {
+        if (totalM >= 17 * 60 && totalM < 18 * 60) {
+          isOpen = false;
+          statusDesc = 'Metals maintenance pause (17:00-18:00 ET). Reopens at 18:00 ET.';
+        } else {
+          isOpen = true;
+          statusDesc = 'Metals market is OPEN (CME/Globex Gold & Silver 23h session).';
+        }
+      }
+
+      if (pill) pill.className = `radar-status-pill ${isOpen ? 'open' : 'closed'}`;
+      if (text) text.textContent = isOpen ? 'OPEN' : 'CLOSED';
+      if (card) {
+        if (isOpen) card.classList.add('session-open');
+        else card.classList.remove('session-open');
+      }
+      if (detail && statusDesc) detail.textContent = statusDesc;
+    }
+  } catch (e) {}
 }
 
 async function fetchMarketSummaryData() {
@@ -1345,6 +1539,28 @@ async function fetchMarketSummaryData() {
       }
       if (detail && ind.status) {
         detail.textContent = ind.status;
+      }
+    }
+
+    // Metals Market Update
+    const metals = data.metals_market;
+    if (metals) {
+      const pill = document.getElementById('radarPillMetals');
+      const text = document.getElementById('radarStatusTextMetals');
+      const detail = document.getElementById('radarDetailMetals');
+      const card = document.getElementById('radarCardMetals');
+
+      if (metals.open) {
+        if (pill) pill.className = 'radar-status-pill open';
+        if (text) text.textContent = 'OPEN';
+        if (card) card.classList.add('session-open');
+      } else {
+        if (pill) pill.className = 'radar-status-pill closed';
+        if (text) text.textContent = 'CLOSED';
+        if (card) card.classList.remove('session-open');
+      }
+      if (detail && metals.status) {
+        detail.textContent = metals.status;
       }
     }
   } catch (err) {
@@ -1645,8 +1861,13 @@ window.addEventListener('DOMContentLoaded', () => {
     refreshAll();
     if (liveTradeState.activeTab === 'tabLiveTrade') {
       refreshLiveTradeView();
-    } else if (liveTradeState.activeTab === 'tabAgentSwarm') {
-      fetchAgentSwarmData();
     }
   }, 3000);
+
+  // Dedicated high-frequency 1-second poll for Agent Swarm HUD (smooth progress bar & real-time telemetry)
+  setInterval(() => {
+    if (liveTradeState.activeTab === 'tabAgentSwarm') {
+      fetchAgentSwarmData();
+    }
+  }, 1000);
 });

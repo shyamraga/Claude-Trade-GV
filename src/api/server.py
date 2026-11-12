@@ -197,8 +197,12 @@ class DashboardAPIHandler(SimpleHTTPRequestHandler):
             timeframe_str = query.get("timeframe", ["15m"])[0]
             limit = int(query.get("limit", [100])[0])
 
-            # Normalize crypto tickers so "BTC" maps directly to liquid "BTC-USD"
-            if raw_symbol in ("BTC", "BITCOIN"):
+            # Normalize metals and crypto tickers
+            if raw_symbol in ("XAU", "GOLD", "XAU/USD", "XAU-USD", "XAUUSD"):
+                symbol = "GC=F"
+            elif raw_symbol in ("XAG", "SILVER", "XAG/USD", "XAG-USD", "XAGUSD"):
+                symbol = "SI=F"
+            elif raw_symbol in ("BTC", "BITCOIN"):
                 symbol = "BTC-USD"
             elif raw_symbol in ("ETH", "ETHEREUM"):
                 symbol = "ETH-USD"
@@ -239,7 +243,11 @@ class DashboardAPIHandler(SimpleHTTPRequestHandler):
             if not bars:
                 # Realistic price baseline by asset class to prevent misleading $150 defaults
                 anchor_price = 150.0
-                if "BTC" in symbol:
+                if symbol == "GC=F" or "XAU" in symbol:
+                    anchor_price = 3995.0
+                elif symbol == "SI=F" or "XAG" in symbol:
+                    anchor_price = 51.80
+                elif "BTC" in symbol:
                     anchor_price = 74500.0
                 elif "ETH" in symbol:
                     anchor_price = 2100.0
